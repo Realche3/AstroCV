@@ -3,12 +3,26 @@ import { TailoredResume } from '@/types/TailoredResume';
 
 interface ResumeStore {
   tailoredResume: TailoredResume | null;
-  setTailoredResume: (resume: TailoredResume) => void;
-  clearTailoredResume: () => void;
+  coverLetter: string | null;
+  followUpEmail: string | null;
+
+  setAll: (
+    resume: TailoredResume,
+    coverLetter: string,
+    followUpEmail: string
+  ) => void;
+
+  clearAll: () => void;
 }
 
 export const useResumeStore = create<ResumeStore>((set) => ({
   tailoredResume: null,
-  setTailoredResume: (resume) => set({ tailoredResume: resume }),
-  clearTailoredResume: () => set({ tailoredResume: null }),
+  coverLetter: null,
+  followUpEmail: null,
+
+  setAll: (resume, coverLetter, followUpEmail) =>
+    set({ tailoredResume: resume, coverLetter, followUpEmail }),
+
+  clearAll: () =>
+    set({ tailoredResume: null, coverLetter: null, followUpEmail: null }),
 }));

@@ -16,7 +16,8 @@ export default function UploadSection() {
   const [error, setError] = useState('');
 
   const router = useRouter();
-  const setTailoredResume = useResumeStore((state) => state.setTailoredResume);
+  const setAll = useResumeStore((state) => state.setAll);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,7 +59,12 @@ export default function UploadSection() {
 
       // Store structured JSON in Zustand
       const tailoredResume: TailoredResume = data.tailoredResume;
-      setTailoredResume(tailoredResume);
+      setAll(
+  tailoredResume,
+  tailoredResume.coverLetter,
+  tailoredResume.followUpEmail
+);
+
 
       // Navigate to dashboard
       router.push('/dashboard');

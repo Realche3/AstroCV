@@ -32,4 +32,8 @@ export interface TailoredResume {
     description: string;
   }[];
   languages: string[];
+
+  // New fields
+  coverLetter: string;
+  followUpEmail: string;
 }

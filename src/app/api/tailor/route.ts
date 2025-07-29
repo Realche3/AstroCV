@@ -38,14 +38,16 @@ export const POST = async (req: Request) => {
       return NextResponse.json({ error: 'Missing resume or job description.' }, { status: 400 });
     }
 
-    // 🧠 JSON-structured prompt
     const prompt = `
-You are an expert AI resume optimization assistant.
+You are an expert AI job application assistant.
 
-Given the following job description and resume, generate a tailored, ATS-friendly, keyword-optimized resume matching the job requirements while maintaining the candidate's voice and professional tone.
+Given the following job description and candidate resume, generate:
 
-Return the result as **strict JSON** with the following format:
+1. A tailored, ATS-optimized resume (structured as JSON).
+2. A short and professional cover letter for the job.
+3. A short and polite follow-up email for after the application.
 
+### Resume Format (JSON only):
 {
   "header": {
     "name": "",
@@ -86,7 +88,13 @@ Return the result as **strict JSON** with the following format:
   "languages": [""]
 }
 
-**Only return valid JSON. Do not include explanations or markdown.**
+### Format your reply strictly like this (no markdown):
+
+{
+  "tailoredResume": { ... },
+  "coverLetter": "Cover letter goes here...",
+  "followUpEmail": "Follow-up email goes here..."
+}
 
 Job Description:
 ${jobDescription}
@@ -98,31 +106,29 @@ ${finalResumeText}
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are a helpful resume optimization assistant.' },
+        { role: 'system', content: 'You are a helpful resume assistant.' },
         { role: 'user', content: prompt },
       ],
-      max_tokens: 2000,
+      max_tokens: 3000,
       temperature: 0.3,
     });
 
     const rawResponse = completion.choices[0].message.content?.trim() || '';
-
-    // Extract JSON from response (handles if extra text before/after)
     const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('[NO_JSON_MATCH]', rawResponse);
       return NextResponse.json({ error: 'OpenAI did not return valid JSON. Try again.' }, { status: 500 });
     }
 
-    let tailoredResume;
+    let parsed;
     try {
-      tailoredResume = JSON.parse(jsonMatch[0]);
+      parsed = JSON.parse(jsonMatch[0]);
     } catch (err) {
       console.error('[JSON_PARSE_ERROR]', err, jsonMatch[0]);
       return NextResponse.json({ error: 'Failed to parse JSON from AI response.' }, { status: 500 });
     }
 
-    return NextResponse.json({ tailoredResume });
+    return NextResponse.json(parsed); // Includes all 3: tailoredResume, coverLetter, followUpEmail
   } catch (error) {
     console.error('[TAILOR_API_ERROR]', error);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
