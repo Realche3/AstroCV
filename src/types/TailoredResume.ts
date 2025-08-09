@@ -32,8 +32,11 @@ export interface TailoredResume {
     description: string;
   }[];
   languages: string[];
+}
 
-  // New fields
+// ✅ This matches the actual API response structure
+export interface TailoredResponse {
+  tailoredResume: TailoredResume;
   coverLetter: string;
   followUpEmail: string;
 }

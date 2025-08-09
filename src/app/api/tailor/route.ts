@@ -127,7 +127,8 @@ ${finalResumeText}
       console.error('[JSON_PARSE_ERROR]', err, jsonMatch[0]);
       return NextResponse.json({ error: 'Failed to parse JSON from AI response.' }, { status: 500 });
     }
-
+    
+    console.log('FINAL PARSED OUTPUT', parsed);
     return NextResponse.json(parsed); // Includes all 3: tailoredResume, coverLetter, followUpEmail
   } catch (error) {
     console.error('[TAILOR_API_ERROR]', error);

@@ -1,6 +1,5 @@
-import React from 'react';
+// src/components/TailoredCoverLetterPDF.tsx
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-import { TailoredResume } from '@/types/TailoredResume';
 
 Font.register({
   family: 'Inter',
@@ -14,37 +13,42 @@ const styles = StyleSheet.create({
   page: {
     padding: 40,
     fontFamily: 'Inter',
-    fontSize: 12,
+    fontSize: 11,
     lineHeight: 1.5,
     color: '#111827',
   },
-  header: {
-    marginBottom: 20,
+  headerName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  contactInfo: {
+    fontSize: 10,
+    color: '#374151',
+    marginBottom: 12,
   },
   content: {
-    marginTop: 10,
-    whiteSpace: 'pre-wrap',
+    fontSize: 11,
+    color: '#374151',
   },
 });
 
 interface Props {
-  tailoredResume: TailoredResume;
+  name: string;
+  email: string;
+  content: string;
 }
 
-export default function TailoredCoverLetterPDF({ tailoredResume }: Props) {
-  const { header, coverLetter } = tailoredResume;
-
+export default function TailoredCoverLetterPDF({ name, email, content }: Props) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <Text>{header.name}</Text>
-          <Text>{header.email}</Text>
-          {header.phone && <Text>{header.phone}</Text>}
+        <View>
+          <Text style={styles.headerName}>{name}</Text>
+          <Text style={styles.contactInfo}>{email}</Text>
         </View>
-
-        <View style={styles.content}>
-          <Text>{coverLetter}</Text>
+        <View>
+          <Text style={styles.content}>{content}</Text>
         </View>
       </Page>
     </Document>

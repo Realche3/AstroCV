@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Viewer, Worker } from '@react-pdf-viewer/core';
+import { SpecialZoomLevel, Viewer, Worker } from '@react-pdf-viewer/core';
 import { pdf } from '@react-pdf/renderer';
 import TailoredResumePDF from './TailoredResumePDF';
 import '@react-pdf-viewer/core/lib/styles/index.css';
@@ -35,9 +35,24 @@ export default function ResumePreviewViewer({ tailoredResume }: ResumePreviewVie
   }
 
   return (
-    <div className="border border-gray-700 rounded-xl overflow-hidden shadow-lg bg-white h-[500px]">
+    <div className="h-[720px] sm:h-[820px] rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
       <Worker workerUrl="/pdf.worker.min.js">
-        <Viewer fileUrl={pdfBlobUrl} />
+
+        <Viewer
+          fileUrl={pdfBlobUrl}
+          defaultScale={SpecialZoomLevel.PageFit}
+          renderError={(error) => (
+            <div className="h-full flex items-center justify-center text-sm text-red-400">
+              {error.message || 'Preview failed to load.'}
+            </div>
+          )}
+          renderLoader={() => (
+            <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+              Loading preview...
+            </div>
+          )}
+        />
+
       </Worker>
     </div>
   );

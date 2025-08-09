@@ -6,7 +6,7 @@ import { ArrowUpTrayIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useResumeStore } from '@/app/store/resumeStore';
-import { TailoredResume } from '@/types/TailoredResume';
+import { TailoredResponse } from '@/types/TailoredResume';
 
 export default function UploadSection() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -57,16 +57,15 @@ export default function UploadSection() {
 
       const data = await res.json();
 
-      // Store structured JSON in Zustand
-      const tailoredResume: TailoredResume = data.tailoredResume;
-      setAll(
-  tailoredResume,
-  tailoredResume.coverLetter,
-  tailoredResume.followUpEmail
-);
+      // ✅ Extract directly from API response
+      const { tailoredResume, coverLetter, followUpEmail }: TailoredResponse = data;
+      console.log('[TAILORED RESUME]', tailoredResume);
+      console.log('[COVER LETTER]', coverLetter);
+      console.log('[FOLLOW UP EMAIL]', followUpEmail);
+      // ✅ Store everything correctly
+      setAll(tailoredResume, coverLetter, followUpEmail);
 
-
-      // Navigate to dashboard
+      // ✅ Navigate to dashboard
       router.push('/dashboard');
     } catch (err) {
       console.error(err);
@@ -75,6 +74,7 @@ export default function UploadSection() {
       setLoading(false);
     }
   };
+
 
   return (
     <section
