@@ -17,52 +17,51 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 1.4,
     color: '#111827',
+    position: 'relative',
   },
-  headerName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  // 🔐 Watermark styles
+  wmWrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  contactInfo: {
-    fontSize: 10,
-    color: '#374151',
-    marginBottom: 10,
-  },
-  section: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontWeight: 'bold',
-    fontSize: 13,
-    marginBottom: 4,
-    textTransform: 'uppercase',
+  wmText: {
+    opacity: 0.08,
+    fontSize: 64,
+    fontWeight: 700,
     color: '#1f2937',
+    transform: 'rotate(-30deg)',
+    textAlign: 'center',
   },
-  bullet: {
-    marginLeft: 12,
-    marginBottom: 2,
-  },
-  text: {
-    fontSize: 11,
-    color: '#374151',
-    marginBottom: 2,
-  },
-  link: {
-    color: '#2563eb',
-    textDecoration: 'underline',
-  },
+
+  headerName: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  contactInfo: { fontSize: 10, color: '#374151', marginBottom: 10 },
+  section: { marginBottom: 12 },
+  sectionTitle: { fontWeight: 'bold', fontSize: 13, marginBottom: 4, textTransform: 'uppercase', color: '#1f2937' },
+  bullet: { marginLeft: 12, marginBottom: 2 },
+  text: { fontSize: 11, color: '#374151', marginBottom: 2 },
+  link: { color: '#2563eb', textDecoration: 'underline' },
 });
 
 interface TailoredResumePDFProps {
   tailoredResume: TailoredResume;
+  locked?: boolean; // 👈 new
 }
 
-export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFProps) {
+export default function TailoredResumePDF({ tailoredResume, locked = false }: TailoredResumePDFProps) {
   const { header, summary, skills, education, experience, certifications, projects, languages } = tailoredResume;
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* 🔐 Watermark (only when locked) */}
+        {locked && (
+          <View style={styles.wmWrap}>
+            <Text style={styles.wmText}>astroCV • demo</Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.section}>
           <Text style={styles.headerName}>{header.name}</Text>
@@ -82,7 +81,7 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
         )}
 
         {/* Skills */}
-        {skills.length > 0 && (
+        {!!skills?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Skills</Text>
             <Text style={styles.text}>{skills.join(', ')}</Text>
@@ -90,7 +89,7 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
         )}
 
         {/* Education */}
-        {education.length > 0 && (
+        {!!education?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Education</Text>
             {education.map((edu, idx) => (
@@ -108,7 +107,7 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
         )}
 
         {/* Experience */}
-        {experience.length > 0 && (
+        {!!experience?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Experience</Text>
             {experience.map((exp, idx) => (
@@ -119,10 +118,8 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
                 <Text style={styles.text}>
                   {exp.location} | {exp.date}
                 </Text>
-                {exp.responsibilities.map((item, i) => (
-                  <Text key={i} style={styles.bullet}>
-                    • {item}
-                  </Text>
+                {exp.responsibilities?.map((item, i) => (
+                  <Text key={i} style={styles.bullet}>• {item}</Text>
                 ))}
               </View>
             ))}
@@ -130,19 +127,17 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
         )}
 
         {/* Certifications */}
-        {certifications.length > 0 && (
+        {!!certifications?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Certifications</Text>
             {certifications.map((cert, idx) => (
-              <Text key={idx} style={styles.text}>
-                • {cert}
-              </Text>
+              <Text key={idx} style={styles.text}>• {cert}</Text>
             ))}
           </View>
         )}
 
         {/* Projects */}
-        {projects.length > 0 && (
+        {!!projects?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Projects</Text>
             {projects.map((proj, idx) => (
@@ -150,9 +145,7 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
                 <Text style={{ fontWeight: 'bold' }}>{proj.title}</Text>
                 {proj.link && (
                   <Text style={styles.text}>
-                    <Link src={proj.link} style={styles.link}>
-                      {proj.link}
-                    </Link>
+                    <Link src={proj.link} style={styles.link}>{proj.link}</Link>
                   </Text>
                 )}
                 <Text style={styles.text}>{proj.description}</Text>
@@ -162,7 +155,7 @@ export default function TailoredResumePDF({ tailoredResume }: TailoredResumePDFP
         )}
 
         {/* Languages */}
-        {languages.length > 0 && (
+        {!!languages?.length && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Languages</Text>
             <Text style={styles.text}>{languages.join(', ')}</Text>
