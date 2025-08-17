@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { pdf as renderPdf } from '@react-pdf/renderer';
 
@@ -18,27 +18,36 @@ import TailoredEmailPDF from '@/components/TailoredEmailPDF';
 import PlanPickerModal from '@/components/PlanPickerModal';
 
 export default function DashboardPage() {
-  // Data
+  // Hydration status (do NOT early return; keep hooks order stable)
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
+  // Zustand state
   const tailoredResume = useResumeStore((s) => s.tailoredResume);
   const coverLetter = useResumeStore((s) => s.coverLetter);
   const followUpEmail = useResumeStore((s) => s.followUpEmail);
 
-  // Paywall state
   const isPaid = useResumeStore((s) => s.isPaid);
+  const proAccessUntil = useResumeStore((s) => s.proAccessUntil);
+
+  const setToken = useResumeStore((s) => s.setToken);
+  const setPaid = useResumeStore((s) => s.setPaid);
+  const setProAccessUntil = useResumeStore((s) => s.setProAccessUntil);
+
+  // Pro if we have a future timestamp
+  const isPro = useMemo(
+    () => !!proAccessUntil && Date.now() < proAccessUntil,
+    [proAccessUntil]
+  );
 
   // Plan modal
   const [planOpen, setPlanOpen] = useState(false);
+  const openPlan = useCallback(() => setPlanOpen(true), []);
+  const closePlan = useCallback(() => setPlanOpen(false), []);
 
-  // -------- Download handlers --------
+  // Downloads
   const handleDownloadResume = useCallback(async () => {
     if (!tailoredResume) return;
-
-    // Gate by payment
-    if (!isPaid) {
-      setPlanOpen(true);
-      return;
-    }
-
     const blob = await renderPdf(
       <TailoredResumePDF tailoredResume={tailoredResume} locked={false} />
     ).toBlob();
@@ -48,11 +57,10 @@ export default function DashboardPage() {
     a.download = 'astrocv_resume.pdf';
     a.click();
     URL.revokeObjectURL(url);
-  }, [isPaid, tailoredResume]);
+  }, [tailoredResume]);
 
   const handleDownloadCoverLetter = useCallback(async () => {
     if (!tailoredResume || !coverLetter) return;
-
     const blob = await renderPdf(
       <TailoredCoverLetterPDF
         name={tailoredResume.header.name}
@@ -70,7 +78,6 @@ export default function DashboardPage() {
 
   const handleDownloadEmail = useCallback(async () => {
     if (!tailoredResume || !followUpEmail) return;
-
     const blob = await renderPdf(
       <TailoredEmailPDF
         name={tailoredResume.header.name}
@@ -86,10 +93,45 @@ export default function DashboardPage() {
     URL.revokeObjectURL(url);
   }, [tailoredResume, followUpEmail]);
 
-  // CTA used by the resume preview overlay
-  const handleUnlockClick = useCallback(() => {
-    setPlanOpen(true);
-  }, []);
+  // Auto-download handling (single purchase)
+  const autoRanRef = useRef(false);
+  useEffect(() => {
+    if (autoRanRef.current) return;
+
+    const hasFlag =
+      typeof window !== 'undefined' &&
+      sessionStorage.getItem('astrocv_autodl') === '1';
+
+    if (!hasFlag) return;
+    if (!tailoredResume) return;
+    if (!isPaid) return;
+
+    autoRanRef.current = true;
+
+    // Remove flag BEFORE starting to avoid re-triggers
+    sessionStorage.removeItem('astrocv_autodl');
+
+    (async () => {
+      try {
+        await handleDownloadResume();
+
+        // Immediately relock for single (non-Pro)
+        if (!isPro) {
+          // small cushion so the file save dialog isn't disrupted
+          setTimeout(() => {
+            setToken(null);
+            setPaid(false);
+            setProAccessUntil(null);
+          }, 300);
+        }
+      } catch (e) {
+        console.error('[AUTO_DOWNLOAD_ERROR]', e);
+        // optional: restore flag so user can try again
+        // sessionStorage.setItem('astrocv_autodl', '1');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tailoredResume, isPaid, isPro]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 py-20 px-4 sm:px-6 lg:px-8">
@@ -98,7 +140,10 @@ export default function DashboardPage() {
           Your Tailored Documents
         </h1>
 
-        {!tailoredResume ? (
+        {/* Hydration placeholder */}
+        {!hydrated ? (
+          <div className="text-center text-gray-400">Loading…</div>
+        ) : !tailoredResume ? (
           <div className="text-center mt-10 space-y-4">
             <p className="text-gray-400 text-lg">No tailored resume found.</p>
             <Link
@@ -110,7 +155,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-10">
-            {/* Resume (Paid / Locked until purchase) */}
+            {/* Resume (paywalled) */}
             <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
                 <h2 className="text-sm font-semibold text-gray-200">Resume</h2>
@@ -122,18 +167,24 @@ export default function DashboardPage() {
               </div>
 
               <div className="p-3">
-                {/* Tall, stacked preview */}
+                {/* Tall single-column preview so page fits without zoom */}
                 <div className="h-[720px] sm:h-[820px]">
                   <ResumePreviewViewer
                     tailoredResume={tailoredResume}
                     locked={!isPaid}
-                    onUnlock={handleUnlockClick}
+                    onUnlock={openPlan}
                   />
                 </div>
 
                 <div className="mt-4 flex justify-end">
                   <button
-                    onClick={handleDownloadResume}
+                    onClick={async () => {
+                      if (!isPaid) {
+                        openPlan();
+                        return;
+                      }
+                      await handleDownloadResume();
+                    }}
                     className="inline-flex items-center px-5 py-2.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-blue-500/30"
                   >
                     Download Resume {isPaid ? '' : '(Paid)'}
@@ -142,7 +193,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* Cover Letter (Free) */}
+            {/* Cover Letter (free) */}
             <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
                 <h2 className="text-sm font-semibold text-gray-200">Cover Letter</h2>
@@ -171,7 +222,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* Follow-up Email (Free) */}
+            {/* Follow-up Email (free) */}
             <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
                 <h2 className="text-sm font-semibold text-gray-200">Follow-up Email</h2>
@@ -203,8 +254,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Plan picker modal for unlocking resume */}
-      <PlanPickerModal open={planOpen} onClose={() => setPlanOpen(false)} />
+      {/* Plan picker modal used to unlock resume */}
+      <PlanPickerModal open={planOpen} onClose={closePlan} />
     </main>
   );
 }

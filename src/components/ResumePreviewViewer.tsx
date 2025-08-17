@@ -89,7 +89,7 @@ export default function ResumePreviewViewer({ tailoredResume, locked = false, on
           <div className="rounded-xl border border-gray-700 bg-gray-900/80 px-6 py-5 shadow-xl text-center">
             <p className="text-gray-200 font-medium">Preview locked</p>
             <p className="text-gray-400 text-sm mt-1">
-              Unlock full-quality & download for <span className="text-blue-300 font-semibold">$2</span>.
+              Unlock full-quality & download for <span className="text-blue-300 font-semibold">$1.99</span>.
             </p>
             <button
               className="mt-3 inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition"
