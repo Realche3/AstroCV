@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProTimerBadge from '@/components/ProTimerBadge';
 
 export default function NavBar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,6 +64,7 @@ export default function NavBar() {
                 />
               </Link>
             ))}
+            <ProTimerBadge />
             <a
               href="#upload-section"
               className="px-4 py-2 rounded-md bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/30"

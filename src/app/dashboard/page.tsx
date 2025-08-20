@@ -17,6 +17,35 @@ import TailoredEmailPDF from '@/components/TailoredEmailPDF';
 
 import PlanPickerModal from '@/components/PlanPickerModal';
 
+function useProCountdown(proAccessUntil: number | null) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const timeLeftMs = useMemo(() => {
+    if (!proAccessUntil) return 0;
+    return Math.max(proAccessUntil - now, 0);
+  }, [proAccessUntil, now]);
+
+  const hadPro = Boolean(proAccessUntil);
+  const isProActive = Boolean(proAccessUntil && timeLeftMs > 0);
+  const isExpired = hadPro && !isProActive;
+
+  return { timeLeftMs, isProActive, isExpired };
+}
+
+function formatTimeLeft(ms: number) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+}
+
 export default function DashboardPage() {
   // Hydration status (do NOT early return; keep hooks order stable)
   const [hydrated, setHydrated] = useState(false);
@@ -39,6 +68,21 @@ export default function DashboardPage() {
     () => !!proAccessUntil && Date.now() < proAccessUntil,
     [proAccessUntil]
   );
+
+  // 🔔 Timer & expired state
+  const { timeLeftMs, isProActive, isExpired } = useProCountdown(proAccessUntil);
+
+  // Auto-relock when Pro expires (keep proAccessUntil for "expired" banner)
+  const prevActiveRef = useRef<boolean>(isProActive);
+  useEffect(() => {
+    if (prevActiveRef.current && !isProActive) {
+      // Pro just transitioned from active -> expired: lock downloads
+      setPaid(false);
+      // NOTE: we intentionally DO NOT clear proAccessUntil
+      // so the UI can show the "Pro expired" banner.
+    }
+    prevActiveRef.current = isProActive;
+  }, [isProActive, setPaid]);
 
   // Plan modal
   const [planOpen, setPlanOpen] = useState(false);
@@ -121,13 +165,12 @@ export default function DashboardPage() {
           setTimeout(() => {
             setToken(null);
             setPaid(false);
+            // keep proAccessUntil as-is (should be null in single purchase)
             setProAccessUntil(null);
           }, 300);
         }
       } catch (e) {
         console.error('[AUTO_DOWNLOAD_ERROR]', e);
-        // optional: restore flag so user can try again
-        // sessionStorage.setItem('astrocv_autodl', '1');
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -154,7 +197,63 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-10">
+          <div className="space-y-6">
+            {/* ✅ Pro timer when active */}
+            {isProActive && (
+              <div className="rounded-xl border border-blue-800/50 bg-blue-900/30 px-4 py-3 text-blue-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <p className="font-semibold text-blue-200">
+                    Pro access active
+                  </p>
+                  <p className="text-sm">
+                    Time left:&nbsp;
+                    <span className="font-mono font-semibold">
+                      {formatTimeLeft(timeLeftMs)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ✅ Pro expired banner */}
+            {!isProActive && isExpired && (
+              <div className="rounded-xl border border-amber-700/50 bg-amber-900/30 px-4 py-3 text-amber-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-amber-200">Your Pro hour has ended</p>
+                    <p className="text-sm text-amber-100/80">
+                      You can still preview your documents. Unlock again to download your resume and
+                      generate unlimited documents for another hour.
+                    </p>
+                  </div>
+                  <a
+                    href="/#pricing"
+                    className="rounded-full bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-600 transition"
+                  >
+                    Unlock again
+                  </a>
+                </div>
+              </div>
+            )}
+            {/* Top actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-sm text-gray-400">
+                Tailoring again won’t cancel your Pro access.
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/#upload-section"
+                  className="inline-flex items-center px-4 py-2 rounded-full border border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-300 transition"
+                  title="Tailor another resume for a different job"
+                >
+                  Tailor another resume
+                </Link>
+                {/* keep your existing Resume download button if you want it duplicated up here,
+        otherwise leave only the section-level buttons */}
+              </div>
+            </div>
+
+
             {/* Resume (paywalled) */}
             <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
@@ -172,7 +271,7 @@ export default function DashboardPage() {
                   <ResumePreviewViewer
                     tailoredResume={tailoredResume}
                     locked={!isPaid}
-                    onUnlock={openPlan}
+                    onUnlock={() => openPlan()}
                   />
                 </div>
 
