@@ -1,10 +1,11 @@
 'use client';
+export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useResumeStore } from '@/app/store/resumeStore';
 
-export default function UnlockSuccessPage() {
+function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -95,5 +96,17 @@ export default function UnlockSuccessPage() {
         Go to Dashboard
       </button>
     </main>
+  );
+}
+
+export default function UnlockSuccessPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-200">
+        <p>Loading...</p>
+      </main>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }

@@ -238,7 +238,7 @@ export default function DashboardPage() {
             {/* Top actions */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="text-sm text-gray-400">
-                Tailoring again won’t cancel your Pro access.
+                Tailoring again will not cancel your Pro access.
               </div>
               <div className="flex items-center gap-3">
                 <Link
