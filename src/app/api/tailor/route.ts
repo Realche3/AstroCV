@@ -10,6 +10,25 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Basic CORS helpers to gracefully handle unexpected preflights in production
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  } as Record<string, string>;
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+}
+
+// Optional: lightweight health check for GET to avoid 405s from HEAD/GET pings
+export async function GET() {
+  return NextResponse.json({ ok: true }, { headers: corsHeaders() });
+}
+
 export const POST = async (req: Request) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
