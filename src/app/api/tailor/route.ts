@@ -9,6 +9,11 @@ const openai = new OpenAI({
 
 export const POST = async (req: Request) => {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('[TAILOR_API_ERROR] Missing OPENAI_API_KEY');
+      return NextResponse.json({ error: 'Server misconfigured: missing OpenAI credentials.' }, { status: 500 });
+    }
+
     const formData = await req.formData();
     const jobDescription = (formData.get('jobDescription') as string)?.trim();
     const resumeText = (formData.get('resumeText') as string | null)?.trim() || null;
@@ -103,15 +108,26 @@ Candidate Resume:
 ${finalResumeText}
 `;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You are a helpful resume assistant.' },
-        { role: 'user', content: prompt },
-      ],
-      max_tokens: 3000,
-      temperature: 0.3,
-    });
+    let completion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a helpful resume assistant.' },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 3000,
+        temperature: 0.3,
+      });
+    } catch (e: any) {
+      console.error('[OPENAI_REQUEST_ERROR]', e?.status, e?.message || e);
+      const msg = e?.status === 401
+        ? 'AI service authentication failed.'
+        : e?.status === 429
+        ? 'AI service rate limited. Please retry shortly.'
+        : 'AI service error. Please try again.';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
 
     const rawResponse = completion.choices[0].message.content?.trim() || '';
     const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);

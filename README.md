@@ -1,5 +1,20 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment
+
+Create a `.env.local` with your keys. See `.env.example` for the full list.
+
+Minimum required for production on astro-cv.com:
+
+- NEXT_PUBLIC_BASE_URL=https://astro-cv.com
+- STRIPE_SECRET_KEY=sk_live_...
+- STRIPE_PRICE_SINGLE=price_...
+- STRIPE_PRICE_HOUR=price_...
+- STRIPE_WEBHOOK_SECRET=whsec_...
+- ACCESS_TOKEN_SECRET=long_random_string
+
+Stripe webhook endpoint: `https://astro-cv.com/api/webhooks/stripe`.
+
 ## Getting Started
 
 First, run the development server:

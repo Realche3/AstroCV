@@ -53,7 +53,14 @@ export default function UploadSection() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Failed to tailor resume.');
+      if (!res.ok) {
+        let detail = '';
+        try {
+          const errJson = await res.json();
+          detail = errJson?.error || '';
+        } catch {}
+        throw new Error(detail || 'Failed to tailor resume.');
+      }
 
       const data = await res.json();
 
@@ -67,9 +74,12 @@ export default function UploadSection() {
 
       // ✅ Navigate to dashboard
       router.push('/dashboard');
-    } catch (err) {
-      console.error(err);
-      setError('Something went wrong. Please try again.');
+    } catch (err: any) {
+      console.error('[TAILOR_SUBMIT_ERROR]', err);
+      const msg = typeof err?.message === 'string' && err.message
+        ? err.message
+        : 'Something went wrong. Please try again.';
+      setError(msg);
     } finally {
       setLoading(false);
     }

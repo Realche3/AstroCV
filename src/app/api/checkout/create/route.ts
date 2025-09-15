@@ -19,7 +19,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Price not configured' }, { status: 500 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
+    // Prefer explicit env for prod custom domain; fall back to request origin
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.BASE_URL ||
+      new URL(req.url).origin;
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
