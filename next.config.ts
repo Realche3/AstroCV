@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       canvas: false as unknown as string, // tell webpack to ignore 'canvas'
+      // Ensure pdf-parse doesn't execute its test harness by aliasing to the lib file
+      'pdf-parse$': 'pdf-parse/lib/pdf-parse.js',
     };
     return config;
   },

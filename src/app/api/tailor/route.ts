@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
+// Import the internal implementation to avoid debug code in pdf-parse's index.js
+// which reads a test file in certain bundlers/environments.
+// eslint-disable-next-line import/no-default-export
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
