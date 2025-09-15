@@ -3,6 +3,9 @@ import OpenAI from 'openai';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });

@@ -22,6 +22,12 @@ export default function UploadSection() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Client-side size guard (e.g., 5 MB)
+      const maxBytes = 5 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setError('File is too large (max 5 MB). Please use a smaller file or paste the text.');
+        return;
+      }
       setResumeFile(file);
       setResumeText('');
     }
@@ -59,7 +65,13 @@ export default function UploadSection() {
           const errJson = await res.json();
           detail = errJson?.error || '';
         } catch {}
-        throw new Error(detail || 'Failed to tailor resume.');
+        if (res.status === 413) {
+          throw new Error('Uploaded file is too large. Please use a smaller file or paste your resume text.');
+        }
+        if (res.status === 400 && !detail) {
+          throw new Error('Invalid input. Please provide a resume and job description.');
+        }
+        throw new Error(detail || `Failed to tailor resume. (HTTP ${res.status})`);
       }
 
       const data = await res.json();
