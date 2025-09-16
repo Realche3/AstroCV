@@ -69,13 +69,32 @@ export const POST = async (req: Request) => {
     }
 
     const prompt = `
-You are an expert AI job application assistant.
+You are an AI resume optimization assistant. Your job is to take a candidate's resume and a job description, then produce three outputs:
 
-Given the following job description and candidate resume, generate:
+1. **A tailored resume in strict JSON format** (see schema below).
+2. **A professional, concise cover letter** (3 to 5 short paragraphs).
+3. **A polite follow-up email** (3 to 4 sentences, suitable to send a few days after applying).
 
-1. A tailored, ATS-optimized resume (structured as JSON).
-2. A short and professional cover letter for the job.
-3. A short and polite follow-up email for after the application.
+---
+
+### 📋 RULES (Critical):
+- **Do NOT invent or fabricate information.** Only use what is present in the candidate's resume.
+- If a field is missing (e.g., no portfolio, no certifications), return it as an empty string or an empty array — never guess.
+- Tailor the content by:
+  - Reordering skills so the most relevant appear first.
+  - Rewriting job responsibilities to highlight impact, quantify results if they are already mentioned.
+  - Paraphrasing to match keywords from the job description naturally (for ATS).
+- Keep the result **ATS-friendly**:
+  - No special symbols, emojis, or fancy formatting.
+  - Keep bullet points simple and concise.
+- **Do not copy/paste the job description verbatim** — summarize or paraphrase it.
+- Preserve the candidate's voice and experience level — don't make them sound overqualified or underqualified.
+- The response **must** be valid JSON and must follow the schema exactly (see below).
+- Do not include any text outside the JSON object — no explanations, no markdown.
+- if resume and job descriptions languages are not the same, generate tailoredResume, followup email and coverLetter in using the original resume language.
+
+---
+
 
 ### Resume Format (JSON only):
 {

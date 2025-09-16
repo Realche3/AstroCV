@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpTrayIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useResumeStore } from '@/app/store/resumeStore';
 import { TailoredResponse } from '@/types/TailoredResume';
+import TailorOverlay from '@/components/TailorOverlay';
 
 export default function UploadSection() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -14,6 +15,8 @@ export default function UploadSection() {
   const [jobDescription, setJobDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [overlayStep, setOverlayStep] = useState(0);
+  const overlayTimerRef = useRef<number | null>(null);
 
   const router = useRouter();
   const setAll = useResumeStore((state) => state.setAll);
@@ -43,7 +46,21 @@ export default function UploadSection() {
       return;
     }
     setError('');
+    setOverlayStep(0);
     setLoading(true);
+
+    // Controlled overlay step progression: advance to second-to-last step and hold
+    const steps = [
+      'Reading current resume',
+      'Extracting key data',
+      'Analyzing job description',
+      'Generating tailored resume',
+      'Finalizing documents',
+    ];
+    const maxIdxBeforeDone = steps.length - 2; // stop at step 4 of 5 (index 3)
+    overlayTimerRef.current = window.setInterval(() => {
+      setOverlayStep((i) => (i < maxIdxBeforeDone ? i + 1 : i));
+    }, 1200) as unknown as number;
 
     try {
       const formData = new FormData();
@@ -85,6 +102,9 @@ export default function UploadSection() {
       setAll(tailoredResume, coverLetter, followUpEmail);
 
       // ✅ Navigate to dashboard
+      // Step 5: Finalizing
+      setOverlayStep(steps.length - 1);
+      await new Promise((r) => setTimeout(r, 500));
       router.push('/dashboard');
     } catch (err: any) {
       console.error('[TAILOR_SUBMIT_ERROR]', err);
@@ -93,6 +113,10 @@ export default function UploadSection() {
         : 'Something went wrong. Please try again.';
       setError(msg);
     } finally {
+      if (overlayTimerRef.current) {
+        clearInterval(overlayTimerRef.current);
+        overlayTimerRef.current = null;
+      }
       setLoading(false);
     }
   };
@@ -181,6 +205,9 @@ export default function UploadSection() {
           </button>
         </div>
       </motion.div>
+
+      {/* Full-screen loading overlay */}
+      {loading && <TailorOverlay stepIndex={overlayStep} />}
     </section>
   );
 }
