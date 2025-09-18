@@ -48,7 +48,7 @@ export default function TermsPage() {
         <section className="mb-10">
           <h2 className="text-xl font-semibold text-white mb-2">6. Contact</h2>
           <p className="text-gray-400">
-            If you have any questions or concerns about these terms, please contact us at <a href="mailto:support@astrocv.ai" className="text-blue-400 underline">support@astrocv.ai</a>.
+            If you have any questions or concerns about these terms, please contact us at <a href="mailto:admin@astrolyft.com" className="text-blue-400 underline">admin@astrolyft.com</a>.
           </p>
         </section>
 

@@ -69,7 +69,7 @@ export default function PrivacyPolicyPage() {
 
           <h2 className="text-blue-300 font-semibold text-lg">8. Contact Us</h2>
           <p>
-            If you have questions, feel free to reach out via our contact form or email us at <a href="mailto:support@astrocv.ai" className="text-blue-400 underline">support@astrocv.ai</a>.
+            If you have questions, feel free to reach out via our contact form or email us at <a href="mailto:admin@astrolyft.com" className="text-blue-400 underline">admin@astrolyft.com</a>.
           </p>
         </section>
       </motion.div>

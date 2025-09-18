@@ -65,7 +65,7 @@ const faqs: FAQ[] = [
   {
     question: 'How do I contact support?',
     answer:
-      "Email support@astrocv.ai and we'll get back to you as soon as possible.",
+      "Use the contact form below or email admin@astrolyft.com and we'll get back to you as soon as possible.",
   },
 ];
 

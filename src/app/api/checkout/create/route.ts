@@ -32,9 +32,10 @@ export async function POST(req: Request) {
       // allow_promotion_codes: true,
     });
 
-    return NextResponse.json({ checkoutUrl: session.url });
+    return NextResponse.json({ checkoutUrl: session.url }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     console.error('[CHECKOUT_CREATE_ERROR]', err);
-    return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create checkout' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
+export const dynamic = 'force-dynamic';

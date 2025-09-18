@@ -54,6 +54,8 @@ export default function Footer() {
           <a href="/privacy" className="hover:text-blue-400 transition">Privacy Policy</a>
           <span className="hidden sm:inline">|</span>
           <a href="/terms" className="hover:text-blue-400 transition">Terms of Service</a>
+          <span className="hidden sm:inline">|</span>
+          <a href="/cookies" className="hover:text-blue-400 transition">Cookies</a>
         </div>
         <p className="mt-4 text-gray-500">
           © {new Date().getFullYear()} AstroCV. All rights reserved.

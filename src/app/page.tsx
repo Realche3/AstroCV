@@ -4,6 +4,7 @@ import UploadSection
 
 import AboutSection from '@/components/AboutSection';
 import FAQSection from '@/components/FAQSection';
+import ContactSection from '@/components/ContactSection';
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       <UploadSection/>
       <AboutSection/>
       <FAQSection/>
+      <ContactSection/>
      
     </>
   );

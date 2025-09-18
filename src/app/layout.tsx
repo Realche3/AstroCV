@@ -4,7 +4,8 @@ import './globals.css';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import EntitlementGate from '@/components/EntitlementGate';
-import { Analytics } from '@vercel/analytics/next';
+import AnalyticsGate from '@/components/AnalyticsGate';
+import CookieBanner from '@/components/CookieBanner';
 import BetaBanner from '@/components/BetaBanner';
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,7 +29,8 @@ export default function RootLayout({
         <EntitlementGate/>
         <main className="pt-8 pb-16">{children}</main>
         <Footer/>
-        <Analytics />
+        <AnalyticsGate />
+        <CookieBanner />
       </body>
     </html>
   );

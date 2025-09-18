@@ -62,6 +62,10 @@ export default function DashboardPage() {
   const setToken = useResumeStore((s) => s.setToken);
   const setPaid = useResumeStore((s) => s.setPaid);
   const setProAccessUntil = useResumeStore((s) => s.setProAccessUntil);
+  const setPurchaseType = useResumeStore((s) => s.setPurchaseType);
+
+  const [recovering, setRecovering] = useState(false);
+  const [recoverMsg, setRecoverMsg] = useState<string | null>(null);
 
   // Pro if we have a future timestamp
   const isPro = useMemo(
@@ -136,6 +140,36 @@ export default function DashboardPage() {
     a.click();
     URL.revokeObjectURL(url);
   }, [tailoredResume, followUpEmail]);
+
+  // Recover purchase (re-confirm by last sessionId)
+  const handleRecover = useCallback(async () => {
+    setRecoverMsg(null);
+    setRecovering(true);
+    try {
+      const sid = typeof window !== 'undefined' ? localStorage.getItem('astrocv_last_sid') : null;
+      if (!sid) throw new Error('No purchase to recover on this device.');
+      const res = await fetch(`/api/checkout/confirm?session_id=${encodeURIComponent(sid)}`);
+      const data = await res.json();
+      if (!res.ok || !data?.token || !data?.type) {
+        throw new Error(data?.error || 'Could not recover purchase.');
+      }
+      setToken(data.token);
+      setPaid(true);
+      setPurchaseType(data.type);
+      if (data.type === 'pro') {
+        if (data.exp) setProAccessUntil(data.exp * 1000);
+        else setProAccessUntil(null);
+      } else {
+        setProAccessUntil(null);
+      }
+      setRecoverMsg('Purchase recovered. You can download now.');
+    } catch (e) {
+      const msg = (e as any)?.message || 'Could not recover purchase.';
+      setRecoverMsg(msg);
+    } finally {
+      setRecovering(false);
+    }
+  }, [setToken, setPaid, setProAccessUntil, setPurchaseType]);
 
   // Auto-download handling (single purchase)
   const autoRanRef = useRef(false);
@@ -248,10 +282,24 @@ export default function DashboardPage() {
                 >
                   Tailor another resume
                 </Link>
+                {!isPaid && (
+                  <button
+                    onClick={handleRecover}
+                    disabled={recovering}
+                    className="inline-flex items-center px-4 py-2 rounded-full border border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-300 transition disabled:opacity-50"
+                    title="Recover your purchase if the download didn’t start"
+                  >
+                    {recovering ? 'Recovering…' : 'Recover purchase'}
+                  </button>
+                )}
                 {/* keep your existing Resume download button if you want it duplicated up here,
         otherwise leave only the section-level buttons */}
               </div>
             </div>
+
+            {!isPaid && recoverMsg && (
+              <div className="text-sm text-gray-400 sm:text-right">{recoverMsg}</div>
+            )}
 
 
             {/* Resume (paywalled) */}

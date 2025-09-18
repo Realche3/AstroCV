@@ -23,6 +23,13 @@ function SuccessContent() {
       return;
     }
 
+    // Persist last session ID for recovery if needed
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('astrocv_last_sid', sessionId);
+      }
+    } catch {}
+
     const confirm = async () => {
       try {
         const res = await fetch(`/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`);

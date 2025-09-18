@@ -18,6 +18,7 @@ export default function NavBar() {
   const navItems = [
     { name: 'Dashboard', href: '/dashboard' },
     { name: 'FAQs', href: '/#faq' },
+    { name: 'Contact', href: '/#contact' },
     { name: 'Terms', href: '/terms' },
     { name: 'Privacy', href: '/privacy' },
   ];

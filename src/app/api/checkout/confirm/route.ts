@@ -16,13 +16,13 @@ export async function GET(req: Request) {
     if (rec) {
       const expSeconds = Math.floor(rec.expMs / 1000);
       const token = issueAccessToken({ type: rec.type, exp: expSeconds, sid: rec.sessionId, email: rec.email ?? undefined });
-      return NextResponse.json({ token, type: rec.type, exp: expSeconds });
+      return NextResponse.json({ token, type: rec.type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     // 2) Fallback: retrieve session directly from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['line_items.data.price'] });
     if (session.payment_status !== 'paid') {
-      return NextResponse.json({ error: 'Payment not completed' }, { status: 400 });
+      return NextResponse.json({ error: 'Payment not completed' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
     }
 
     const price = session.line_items?.data?.[0]?.price as Stripe.Price | null | undefined;
@@ -42,9 +42,10 @@ export async function GET(req: Request) {
     }
 
     const token = issueAccessToken({ type, exp: expSeconds, sid: sessionId, email: session.customer_details?.email ?? undefined });
-    return NextResponse.json({ token, type, exp: expSeconds });
+    return NextResponse.json({ token, type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     console.error('[CHECKOUT_CONFIRM_ERROR]', err);
-    return NextResponse.json({ error: 'Failed to confirm checkout' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to confirm checkout' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
+export const dynamic = 'force-dynamic';
