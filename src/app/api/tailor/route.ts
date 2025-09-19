@@ -116,6 +116,10 @@ export async function GET() {
 }
 
 export const POST = async (req: Request) => {
+  let hasUnlimitedTailoring = false;
+  let quota: TailorQuota = { date: todayKey(), count: 0 };
+  let proUsage: ProUsage | null = null;
+
   try {
     if (!process.env.OPENAI_API_KEY) {
       console.error('[TAILOR_API_ERROR] Missing OPENAI_API_KEY');
@@ -133,14 +137,14 @@ const accessToken = typeof accessTokenRaw === 'string' ? accessTokenRaw.trim() :
 const entitlement = accessToken ? verifyAccessToken(accessToken) : null;
 const proSessionId = entitlement?.type === 'pro' && entitlement.sid ? entitlement.sid : null;
 const proSessionExp = entitlement?.type === 'pro' && entitlement.exp ? entitlement.exp : null;
-const hasUnlimitedTailoring = Boolean(proSessionId && proSessionExp);
+hasUnlimitedTailoring = Boolean(proSessionId && proSessionExp);
 
 const cookieStore = await cookies();
 const today = todayKey();
 const nowSeconds = Math.floor(Date.now() / 1000);
 
-let quota: TailorQuota = { date: today, count: 0 };
-let proUsage: ProUsage | null = null;
+quota = { date: today, count: 0 };
+proUsage = null;
 
 if (hasUnlimitedTailoring && proSessionId && proSessionExp) {
   const proCookieValue = cookieStore.get(PRO_TAILOR_COOKIE)?.value;

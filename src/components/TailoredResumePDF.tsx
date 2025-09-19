@@ -746,7 +746,7 @@ const templateMap = Object.fromEntries(
     definition.id,
     (props: TemplateProps) => renderTemplate(definition, props),
   ])
-) as Record<ResumeTemplateId, (props: TemplateProps) => JSX.Element>;
+) as Record<ResumeTemplateId, (props: TemplateProps) => React.ReactElement>;
 
 interface ResumeTemplateOption {
   id: ResumeTemplateId;
