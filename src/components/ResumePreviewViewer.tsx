@@ -1,20 +1,21 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { Viewer, Worker, SpecialZoomLevel } from '@react-pdf-viewer/core';
 import { pdf as renderPdf } from '@react-pdf/renderer';
-import TailoredResumePDF from './TailoredResumePDF';
+import TailoredResumePDF, { ResumeTemplateId } from './TailoredResumePDF';
 import { TailoredResume } from '@/types/TailoredResume';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 
 interface Props {
   tailoredResume: TailoredResume;
-  locked?: boolean;        // 👈 new
-  onUnlock?: () => void;   // optional handler to open checkout
+  templateId: ResumeTemplateId;
+  locked?: boolean;
+  onUnlock?: () => void;
   className?: string;
 }
 
-export default function ResumePreviewViewer({ tailoredResume, locked = false, onUnlock, className }: Props) {
+export default function ResumePreviewViewer({ tailoredResume, templateId, locked = false, onUnlock, className }: Props) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -26,7 +27,11 @@ export default function ResumePreviewViewer({ tailoredResume, locked = false, on
       try {
         setErr(null);
         const blob = await renderPdf(
-          <TailoredResumePDF tailoredResume={tailoredResume} locked={locked} />
+          <TailoredResumePDF
+            tailoredResume={tailoredResume}
+            templateId={templateId}
+            locked={locked}
+          />
         ).toBlob();
         const url = URL.createObjectURL(blob);
         revokedUrl = url;
@@ -45,7 +50,7 @@ export default function ResumePreviewViewer({ tailoredResume, locked = false, on
       active = false;
       if (revokedUrl) URL.revokeObjectURL(revokedUrl);
     };
-  }, [tailoredResume, locked]);
+  }, [tailoredResume, templateId, locked]);
 
   return (
     <div
@@ -83,7 +88,6 @@ export default function ResumePreviewViewer({ tailoredResume, locked = false, on
         </Worker>
       </div>
 
-      {/* 🔐 Lock overlay */}
       {locked && (
         <div className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent via-gray-900/20 to-gray-900/40">
           <div className="rounded-xl border border-gray-700 bg-gray-900/80 px-6 py-5 shadow-xl text-center">
@@ -103,3 +107,4 @@ export default function ResumePreviewViewer({ tailoredResume, locked = false, on
     </div>
   );
 }
+

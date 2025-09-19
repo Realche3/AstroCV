@@ -2,12 +2,27 @@
 
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpTrayIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import { ArrowUpTrayIcon, PaperAirplaneIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useResumeStore } from '@/app/store/resumeStore';
 import { TailoredResponse } from '@/types/TailoredResume';
 import TailorOverlay from '@/components/TailorOverlay';
+
+const uploadDeliverables = [
+  {
+    title: 'Tailored Resume',
+    description: 'ATS-ready resume aligned with the job description in your chosen template.',
+  },
+  {
+    title: 'Cover Letter',
+    description: 'Job-specific cover letter that highlights your story and impact.',
+  },
+  {
+    title: 'Follow-up Email',
+    description: 'Copy-and-send follow-up note to stay memorable with recruiters.',
+  },
+] as const;
 
 export default function UploadSection() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -15,6 +30,7 @@ export default function UploadSection() {
   const [jobDescription, setJobDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [overlayStep, setOverlayStep] = useState(0);
   const overlayTimerRef = useRef<number | null>(null);
 
@@ -39,13 +55,16 @@ export default function UploadSection() {
   const handleSubmit = async () => {
     if (!resumeFile && !resumeText) {
       setError('Please upload a resume or paste your resume text.');
+      setNotice('');
       return;
     }
     if (!jobDescription) {
       setError('Please paste the job description.');
+      setNotice('');
       return;
     }
     setError('');
+    setNotice('');
     setOverlayStep(0);
     setLoading(true);
 
@@ -71,12 +90,18 @@ export default function UploadSection() {
       }
       formData.append('jobDescription', jobDescription);
 
+      const accessToken = typeof window !== 'undefined' ? localStorage.getItem('astrocv_access') : null;
+      if (accessToken) {
+        formData.append('accessToken', accessToken);
+      }
+
       const res = await fetch('/api/tailor', {
         method: 'POST',
         body: formData,
       });
 
       if (!res.ok) {
+        setNotice('');
         let detail = '';
         try {
           const errJson = await res.json();
@@ -88,20 +113,37 @@ export default function UploadSection() {
         if (res.status === 400 && !detail) {
           throw new Error('Invalid input. Please provide a resume and job description.');
         }
+        if (res.status === 429) {
+          const limitMsg =
+            detail || "You have reached today's free tailoring limit. Unlock your latest tailored resume to continue tailoring new ones.";
+          setNotice(limitMsg);
+          setError('');
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('astrocv_limit_notice', limitMsg);
+          }
+          setOverlayStep(0);
+          router.push('/dashboard');
+          return;
+        }
         throw new Error(detail || `Failed to tailor resume. (HTTP ${res.status})`);
+      }
+
+      const warningMessage = res.headers.get('x-tailor-warning');
+      if (warningMessage) {
+        setNotice(warningMessage);
       }
 
       const data = await res.json();
 
-      // ✅ Extract directly from API response
+      // NOTE: Extract directly from API response
       const { tailoredResume, coverLetter, followUpEmail }: TailoredResponse = data;
       console.log('[TAILORED RESUME]', tailoredResume);
       console.log('[COVER LETTER]', coverLetter);
       console.log('[FOLLOW UP EMAIL]', followUpEmail);
-      // ✅ Store everything correctly
+      // NOTE: Store everything correctly
       setAll(tailoredResume, coverLetter, followUpEmail);
 
-      // ✅ Navigate to dashboard
+      // NOTE: Navigate to dashboard
       // Step 5: Finalizing
       setOverlayStep(steps.length - 1);
       await new Promise((r) => setTimeout(r, 500));
@@ -111,6 +153,7 @@ export default function UploadSection() {
       const msg = typeof err?.message === 'string' && err.message
         ? err.message
         : 'Something went wrong. Please try again.';
+      setNotice('');
       setError(msg);
     } finally {
       if (overlayTimerRef.current) {
@@ -139,6 +182,27 @@ export default function UploadSection() {
         <p className="text-center text-gray-400 mb-10 max-w-xl mx-auto">
           Upload or paste your resume, paste the job description, and let AI instantly tailor your resume for you.
         </p>
+
+        <div className="mb-10 rounded-2xl border border-gray-800/70 bg-gray-900/40 p-6 shadow-lg">
+          <h3 className="text-center text-lg font-semibold text-gray-100 sm:text-xl">What you'll get in 60 seconds</h3>
+          <p className="mt-2 text-center text-sm text-gray-400">Everything below is generated together so you're ready to apply immediately.</p>
+          <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+            {uploadDeliverables.map((item) => (
+              <li
+                key={item.title}
+                className="flex items-start gap-3 rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-4"
+              >
+                <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
+                  <CheckCircleIcon className="h-4 w-4 text-blue-400" />
+                </span>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-100">{item.title}</p>
+                  <p className="text-xs text-gray-400 sm:text-sm">{item.description}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         {/* Upload File */}
         <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-6 mb-6 shadow-lg hover:shadow-blue-500/10 transition">
@@ -183,6 +247,7 @@ export default function UploadSection() {
           />
         </div>
 
+        {notice && <p className="text-blue-400 text-center mb-4">{notice}</p>}
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
         <div className="flex justify-center">

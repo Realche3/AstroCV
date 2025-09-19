@@ -11,7 +11,7 @@ import ResumePreviewViewer from '@/components/ResumePreviewViewer';
 import CoverLetterPreviewViewer from '@/components/CoverLetterPreviewViewer';
 import EmailPreviewViewer from '@/components/EmailPreviewViewer';
 
-import TailoredResumePDF from '@/components/TailoredResumePDF';
+import TailoredResumePDF, { resumeTemplateGroups, normalizeTemplateId, ResumeTemplateId } from '@/components/TailoredResumePDF';
 import TailoredCoverLetterPDF from '@/components/TailoredCoverLetterPDF';
 import TailoredEmailPDF from '@/components/TailoredEmailPDF';
 
@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const tailoredResume = useResumeStore((s) => s.tailoredResume);
   const coverLetter = useResumeStore((s) => s.coverLetter);
   const followUpEmail = useResumeStore((s) => s.followUpEmail);
+  const resumeTemplateId = useResumeStore((s) => s.resumeTemplateId);
 
   const isPaid = useResumeStore((s) => s.isPaid);
   const proAccessUntil = useResumeStore((s) => s.proAccessUntil);
@@ -63,9 +64,55 @@ export default function DashboardPage() {
   const setPaid = useResumeStore((s) => s.setPaid);
   const setProAccessUntil = useResumeStore((s) => s.setProAccessUntil);
   const setPurchaseType = useResumeStore((s) => s.setPurchaseType);
+  const setResumeTemplate = useResumeStore((s) => s.setResumeTemplate);
+
+  const selectTemplateById = useCallback((id: ResumeTemplateId) => {
+    if (id !== resumeTemplateId) {
+      setResumeTemplate(id);
+    }
+  }, [resumeTemplateId, setResumeTemplate]);
+
+  const effectiveTemplateId = useMemo(() => normalizeTemplateId(resumeTemplateId), [resumeTemplateId]);
+
+  useEffect(() => {
+    if (effectiveTemplateId !== resumeTemplateId) {
+      setResumeTemplate(effectiveTemplateId);
+    }
+  }, [effectiveTemplateId, resumeTemplateId, setResumeTemplate]);
+
+  const [activeTemplateCategory, setActiveTemplateCategory] = useState(() => {
+    const match = resumeTemplateGroups.find((group) =>
+      group.templates.some((tpl) => tpl.id === effectiveTemplateId)
+    );
+    if (match) return match.id;
+    return resumeTemplateGroups.length > 0 ? resumeTemplateGroups[0].id : 'corporate';
+  });
+
+  useEffect(() => {
+    const match = resumeTemplateGroups.find((group) =>
+      group.templates.some((tpl) => tpl.id === effectiveTemplateId)
+    );
+    if (match) {
+      setActiveTemplateCategory((current) => (current === match.id ? current : match.id));
+    }
+  }, [effectiveTemplateId]);
+
+  const visibleTemplates = useMemo(() => {
+    const group = resumeTemplateGroups.find((item) => item.id === activeTemplateCategory);
+    return group ? group.templates : [];
+  }, [activeTemplateCategory]);
+
+  const activeCategoryMeta = useMemo(() => {
+    return resumeTemplateGroups.find((item) => item.id === activeTemplateCategory);
+  }, [activeTemplateCategory]);
 
   const [recovering, setRecovering] = useState(false);
   const [recoverMsg, setRecoverMsg] = useState<string | null>(null);
+  const [coverLetterCopied, setCoverLetterCopied] = useState(false);
+  const [followUpCopied, setFollowUpCopied] = useState(false);
+  const coverLetterCopyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const followUpCopyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [limitNotice, setLimitNotice] = useState<string | null>(null);
 
   // Pro if we have a future timestamp
   const isPro = useMemo(
@@ -73,20 +120,25 @@ export default function DashboardPage() {
     [proAccessUntil]
   );
 
-  // 🔔 Timer & expired state
+  // Timer & expired state
   const { timeLeftMs, isProActive, isExpired } = useProCountdown(proAccessUntil);
 
   // Auto-relock when Pro expires (keep proAccessUntil for "expired" banner)
-  const prevActiveRef = useRef<boolean>(isProActive);
   useEffect(() => {
-    if (prevActiveRef.current && !isProActive) {
-      // Pro just transitioned from active -> expired: lock downloads
-      setPaid(false);
-      // NOTE: we intentionally DO NOT clear proAccessUntil
-      // so the UI can show the "Pro expired" banner.
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem('astrocv_limit_notice');
+    if (stored) {
+      setLimitNotice(stored);
+      sessionStorage.removeItem('astrocv_limit_notice');
     }
-    prevActiveRef.current = isProActive;
-  }, [isProActive, setPaid]);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (coverLetterCopyTimeout.current) clearTimeout(coverLetterCopyTimeout.current);
+      if (followUpCopyTimeout.current) clearTimeout(followUpCopyTimeout.current);
+    };
+  }, []);
 
   // Plan modal
   const [planOpen, setPlanOpen] = useState(false);
@@ -97,7 +149,11 @@ export default function DashboardPage() {
   const handleDownloadResume = useCallback(async () => {
     if (!tailoredResume) return;
     const blob = await renderPdf(
-      <TailoredResumePDF tailoredResume={tailoredResume} locked={false} />
+      <TailoredResumePDF
+        tailoredResume={tailoredResume}
+        templateId={effectiveTemplateId}
+        locked={false}
+      />
     ).toBlob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -105,7 +161,7 @@ export default function DashboardPage() {
     a.download = 'astrocv_resume.pdf';
     a.click();
     URL.revokeObjectURL(url);
-  }, [tailoredResume]);
+  }, [tailoredResume, effectiveTemplateId]);
 
   const handleDownloadCoverLetter = useCallback(async () => {
     if (!tailoredResume || !coverLetter) return;
@@ -140,6 +196,44 @@ export default function DashboardPage() {
     a.click();
     URL.revokeObjectURL(url);
   }, [tailoredResume, followUpEmail]);
+
+  const handleCopyCoverLetter = useCallback(async () => {
+    const text = coverLetter?.trim();
+    if (!text) return;
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      console.error('Clipboard API not available for copy cover letter.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCoverLetterCopied(true);
+      if (coverLetterCopyTimeout.current) clearTimeout(coverLetterCopyTimeout.current);
+      coverLetterCopyTimeout.current = setTimeout(() => setCoverLetterCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy cover letter.', error);
+      setCoverLetterCopied(false);
+    }
+  }, [coverLetter]);
+
+  const handleCopyFollowUpEmail = useCallback(async () => {
+    const text = followUpEmail?.trim();
+    if (!text) return;
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      console.error('Clipboard API not available for copy follow-up email.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setFollowUpCopied(true);
+      if (followUpCopyTimeout.current) clearTimeout(followUpCopyTimeout.current);
+      followUpCopyTimeout.current = setTimeout(() => setFollowUpCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy follow-up email.', error);
+      setFollowUpCopied(false);
+    }
+  }, [followUpEmail]);
 
   // Recover purchase (re-confirm by last sessionId)
   const handleRecover = useCallback(async () => {
@@ -219,7 +313,7 @@ export default function DashboardPage() {
 
         {/* Hydration placeholder */}
         {!hydrated ? (
-          <div className="text-center text-gray-400">Loading…</div>
+          <div className="text-center text-gray-400">Loading...</div>
         ) : !tailoredResume ? (
           <div className="text-center mt-10 space-y-4">
             <p className="text-gray-400 text-lg">No tailored resume found.</p>
@@ -232,7 +326,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* ✅ Pro timer when active */}
+            {limitNotice && (
+              <div className="rounded-xl border border-blue-800/60 bg-blue-900/40 px-4 py-3 text-blue-100">
+                {limitNotice}
+              </div>
+            )}
+            {/* Pro timer when active */}
             {isProActive && (
               <div className="rounded-xl border border-blue-800/50 bg-blue-900/30 px-4 py-3 text-blue-100">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -249,7 +348,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ✅ Pro expired banner */}
+            {/* Pro expired banner */}
             {!isProActive && isExpired && (
               <div className="rounded-xl border border-amber-700/50 bg-amber-900/30 px-4 py-3 text-amber-100">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -287,9 +386,9 @@ export default function DashboardPage() {
                     onClick={handleRecover}
                     disabled={recovering}
                     className="inline-flex items-center px-4 py-2 rounded-full border border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-300 transition disabled:opacity-50"
-                    title="Recover your purchase if the download didn’t start"
+                    title="Recover your purchase if the download didnEURTMt start"
                   >
-                    {recovering ? 'Recovering…' : 'Recover purchase'}
+                    {recovering ? 'Recovering...' : 'Recover purchase'}
                   </button>
                 )}
                 {/* keep your existing Resume download button if you want it duplicated up here,
@@ -303,8 +402,8 @@ export default function DashboardPage() {
 
 
             {/* Resume (paywalled) */}
-            <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <section className="rounded-2xl border border-gray-800/70 bg-gray-900/40 shadow-lg">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
                 <h2 className="text-sm font-semibold text-gray-200">Resume</h2>
                 {!isPaid && (
                   <span className="text-xs rounded-full bg-blue-900/40 text-blue-200 px-2 py-1 border border-blue-800">
@@ -313,17 +412,62 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              <div className="p-3">
-                {/* Tall single-column preview so page fits without zoom */}
-                <div className="h-[720px] sm:h-[820px]">
+              <div className="p-5 sm:p-6 space-y-5">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {resumeTemplateGroups.map((group) => {
+                      const isActiveGroup = group.id === activeTemplateCategory;
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => setActiveTemplateCategory(group.id)}
+                          aria-pressed={isActiveGroup}
+                          className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                            isActiveGroup
+                              ? 'border-blue-500/70 bg-blue-500/10 text-blue-100'
+                              : 'border-gray-800/70 text-gray-300 hover:border-blue-500/50 hover:text-blue-100'
+                          }`}
+                        >
+                          {group.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {activeCategoryMeta?.description ? (
+                    <p className="text-[11px] text-gray-500">{activeCategoryMeta.description}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {visibleTemplates.map((option) => {
+                    const isActive = option.id === effectiveTemplateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => selectTemplateById(option.id)}
+                        aria-pressed={isActive}
+                        className={`flex min-w-[180px] flex-col gap-1 rounded-xl border px-4 py-3 text-left transition ${
+                          isActive
+                            ? 'border-blue-500/80 bg-blue-500/10 text-blue-100'
+                            : 'border-gray-800/70 text-gray-200 hover:border-blue-500/50 hover:text-blue-100'
+                        }`}
+                      >
+                        <span className="text-sm font-semibold">{option.label}</span>
+                        <span className="text-xs text-gray-400">{option.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="h-[680px] sm:h-[760px] overflow-hidden rounded-xl border border-gray-800/60 bg-gray-900/50">
                   <ResumePreviewViewer
                     tailoredResume={tailoredResume}
+                    templateId={effectiveTemplateId}
                     locked={!isPaid}
                     onUnlock={() => openPlan()}
                   />
                 </div>
-
-                <div className="mt-4 flex justify-end">
+                <div className="flex justify-end">
                   <button
                     onClick={async () => {
                       if (!isPaid) {
@@ -332,7 +476,7 @@ export default function DashboardPage() {
                       }
                       await handleDownloadResume();
                     }}
-                    className="inline-flex items-center px-5 py-2.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-blue-500/30"
+                    className="inline-flex items-center px-5 py-2.5 rounded-full bg-blue-500 text-white font-medium transition hover:bg-blue-600"
                   >
                     Download Resume {isPaid ? '' : '(Paid)'}
                   </button>
@@ -340,63 +484,81 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* Cover Letter (free) */}
-            <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                <h2 className="text-sm font-semibold text-gray-200">Cover Letter</h2>
-                <span className="text-xs rounded-full bg-gray-800 text-gray-300 px-2 py-1 border border-gray-700">
-                  Free
-                </span>
-              </div>
-
-              <div className="p-3">
-                <div className="h-[720px] sm:h-[820px]">
-                  <CoverLetterPreviewViewer
-                    name={tailoredResume.header.name}
-                    email={tailoredResume.header.email}
-                    content={coverLetter || ''}
-                  />
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Cover Letter (free) */}
+              <section className="rounded-2xl border border-gray-800/70 bg-gray-900/40 shadow-lg">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+                  <h2 className="text-sm font-semibold text-gray-200">Cover Letter</h2>
+                  <span className="text-xs rounded-full bg-gray-800 text-gray-300 px-2 py-1 border border-gray-700">
+                    Free
+                  </span>
                 </div>
 
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={handleDownloadCoverLetter}
-                    className="inline-flex items-center px-5 py-2.5 rounded-full bg-gray-800 text-white border border-gray-700 hover:border-blue-400 hover:text-blue-300 transition"
-                  >
-                    Download Cover Letter (Free)
-                  </button>
+                <div className="p-5 sm:p-6 space-y-5">
+                  <div className="h-[500px] sm:h-[620px] overflow-hidden rounded-xl border border-gray-800/60 bg-gray-900/50">
+                    <CoverLetterPreviewViewer
+                      name={tailoredResume.header.name}
+                      email={tailoredResume.header.email}
+                      content={coverLetter || ''}
+                    />
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyCoverLetter}
+                      disabled={!coverLetter || !coverLetter.trim()}
+                      className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-xs font-medium transition ${coverLetterCopied ? 'border-blue-500 bg-blue-500/10 text-blue-100' : 'border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-200'} disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-5 sm:py-2.5 sm:text-sm`}
+                    >
+                      {coverLetterCopied ? 'Copied!' : 'Copy Cover Letter'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadCoverLetter}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-gray-700 px-4 py-2 text-xs font-medium text-gray-200 transition hover:border-blue-400 hover:text-blue-200 sm:w-auto sm:px-5 sm:py-2.5 sm:text-sm"
+                    >
+                      Download Cover Letter (Free)
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            {/* Follow-up Email (free) */}
-            <section className="rounded-xl border border-gray-800 bg-gray-900/50 shadow-lg">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                <h2 className="text-sm font-semibold text-gray-200">Follow-up Email</h2>
-                <span className="text-xs rounded-full bg-gray-800 text-gray-300 px-2 py-1 border border-gray-700">
-                  Free
-                </span>
-              </div>
-
-              <div className="p-3">
-                <div className="h-[720px] sm:h-[820px]">
-                  <EmailPreviewViewer
-                    name={tailoredResume.header.name}
-                    email={tailoredResume.header.email}
-                    content={followUpEmail || ''}
-                  />
+              {/* Follow-up Email (free) */}
+              <section className="rounded-2xl border border-gray-800/70 bg-gray-900/40 shadow-lg">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
+                  <h2 className="text-sm font-semibold text-gray-200">Follow-up Email</h2>
+                  <span className="text-xs rounded-full bg-gray-800 text-gray-300 px-2 py-1 border border-gray-700">
+                    Free
+                  </span>
                 </div>
 
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={handleDownloadEmail}
-                    className="inline-flex items-center px-5 py-2.5 rounded-full bg-gray-800 text-white border border-gray-700 hover:border-blue-400 hover:text-blue-300 transition"
-                  >
-                    Download Follow-up Email (Free)
-                  </button>
+                <div className="p-5 sm:p-6 space-y-5">
+                  <div className="h-[500px] sm:h-[620px] overflow-hidden rounded-xl border border-gray-800/60 bg-gray-900/50">
+                    <EmailPreviewViewer
+                      name={tailoredResume.header.name}
+                      email={tailoredResume.header.email}
+                      content={followUpEmail || ''}
+                    />
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyFollowUpEmail}
+                      disabled={!followUpEmail || !followUpEmail.trim()}
+                      className={`inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-xs font-medium transition ${followUpCopied ? 'border-blue-500 bg-blue-500/10 text-blue-100' : 'border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-200'} disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-5 sm:py-2.5 sm:text-sm`}
+                    >
+                      {followUpCopied ? 'Copied!' : 'Copy Follow-up Email'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadEmail}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-gray-700 px-4 py-2 text-xs font-medium text-gray-200 transition hover:border-blue-400 hover:text-blue-200 sm:w-auto sm:px-5 sm:py-2.5 sm:text-sm"
+                    >
+                      Download Follow-up Email (Free)
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
         )}
       </div>
@@ -406,3 +568,4 @@ export default function DashboardPage() {
     </main>
   );
 }
+

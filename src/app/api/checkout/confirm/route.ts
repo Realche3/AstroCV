@@ -16,7 +16,9 @@ export async function GET(req: Request) {
     if (rec) {
       const expSeconds = Math.floor(rec.expMs / 1000);
       const token = issueAccessToken({ type: rec.type, exp: expSeconds, sid: rec.sessionId, email: rec.email ?? undefined });
-      return NextResponse.json({ token, type: rec.type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
+      const response = NextResponse.json({ token, type: rec.type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
+      response.cookies.delete('tailor_quota');
+      return response;
     }
 
     // 2) Fallback: retrieve session directly from Stripe
@@ -42,7 +44,9 @@ export async function GET(req: Request) {
     }
 
     const token = issueAccessToken({ type, exp: expSeconds, sid: sessionId, email: session.customer_details?.email ?? undefined });
-    return NextResponse.json({ token, type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
+    const response = NextResponse.json({ token, type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
+    response.cookies.delete('tailor_quota');
+    return response;
   } catch (err) {
     console.error('[CHECKOUT_CONFIRM_ERROR]', err);
     return NextResponse.json({ error: 'Failed to confirm checkout' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
