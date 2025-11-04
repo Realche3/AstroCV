@@ -2,12 +2,14 @@
 
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpTrayIcon, PaperAirplaneIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { ArrowUpTrayIcon, PaperAirplaneIcon, CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useResumeStore } from '@/app/store/resumeStore';
 import { TailoredResponse } from '@/types/TailoredResume';
 import TailorOverlay from '@/components/TailorOverlay';
+import PlanPickerModal from '@/components/PlanPickerModal';
+import { useProAccess, formatTimeLeft } from '@/hooks/useProAccess';
 
 const uploadDeliverables = [
   {
@@ -33,10 +35,16 @@ export default function UploadSection() {
   const [notice, setNotice] = useState('');
   const [overlayStep, setOverlayStep] = useState(0);
   const overlayTimerRef = useRef<number | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const router = useRouter();
   const setAll = useResumeStore((state) => state.setAll);
-
+  const freeTrialUsed = useResumeStore((state) => state.freeTrialUsed);
+  const setFreeTrialUsed = useResumeStore((state) => state.setFreeTrialUsed);
+  const singleCredits = useResumeStore((state) => state.singleCredits);
+  const consumeSingleCredit = useResumeStore((state) => state.consumeSingleCredit);
+  const { isProActive, timeLeftMs } = useProAccess();
+  const hasProUnlimited = isProActive;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,6 +61,13 @@ export default function UploadSection() {
   };
 
   const handleSubmit = async () => {
+    if (freeTrialUsed && singleCredits <= 0 && !hasProUnlimited) {
+      setNotice("You've used your free trial and any credits. Unlock a plan to tailor new resumes.");
+      setError('');
+      setPlanOpen(true);
+      return;
+    }
+
     if (!resumeFile && !resumeText) {
       setError('Please upload a resume or paste your resume text.');
       setNotice('');
@@ -137,11 +152,16 @@ export default function UploadSection() {
 
       // NOTE: Extract directly from API response
       const { tailoredResume, coverLetter, followUpEmail }: TailoredResponse = data;
-      console.log('[TAILORED RESUME]', tailoredResume);
-      console.log('[COVER LETTER]', coverLetter);
-      console.log('[FOLLOW UP EMAIL]', followUpEmail);
       // NOTE: Store everything correctly
       setAll(tailoredResume, coverLetter, followUpEmail);
+
+      if (!freeTrialUsed) {
+        setFreeTrialUsed(true);
+      }
+
+      if (singleCredits > 0 && !hasProUnlimited) {
+        consumeSingleCredit();
+      }
 
       // NOTE: Navigate to dashboard
       // Step 5: Finalizing
@@ -182,6 +202,48 @@ export default function UploadSection() {
         <p className="text-center text-gray-400 mb-10 max-w-xl mx-auto">
           Upload or paste your resume, paste the job description, and let AI instantly tailor your resume for you.
         </p>
+
+        {hasProUnlimited ? (
+          <div className="mb-8 rounded-2xl border border-indigo-700/70 bg-indigo-900/35 px-5 py-4 text-sm text-indigo-100 shadow-lg shadow-indigo-900/15">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-indigo-500/40 bg-indigo-500/15">
+                  <SparklesIcon className="h-4 w-4 text-indigo-200" />
+                </span>
+                <p>
+                  Pro Hour is live. Unlimited tailoring for the next {formatTimeLeft(timeLeftMs)}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="inline-flex items-center justify-center rounded-full border border-indigo-400/60 bg-indigo-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-indigo-100 transition hover:border-indigo-300 hover:text-white"
+              >
+                Tailor now
+              </button>
+            </div>
+          </div>
+        ) : singleCredits > 0 ? (
+          <div className="mb-8 rounded-2xl border border-blue-800/70 bg-blue-900/35 px-5 py-4 text-sm text-blue-100 shadow-lg shadow-blue-900/10">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/40 bg-blue-500/15">
+                  <SparklesIcon className="h-4 w-4 text-blue-200" />
+                </span>
+                <p>
+                  You have {singleCredits} paid resume credit{singleCredits > 1 ? 's' : ''} ready. Each credit delivers a resume, cover letter, and follow-up email.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="inline-flex items-center justify-center rounded-full border border-blue-400/60 bg-blue-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-blue-100 transition hover:border-blue-300 hover:text-white"
+              >
+                Use credit now
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mb-10 rounded-2xl border border-gray-800/70 bg-gray-900/40 p-6 shadow-lg">
           <h3 className="text-center text-lg font-semibold text-gray-100 sm:text-xl">What you'll get in 60 seconds</h3>
@@ -273,6 +335,10 @@ export default function UploadSection() {
 
       {/* Full-screen loading overlay */}
       {loading && <TailorOverlay stepIndex={overlayStep} />}
+      <PlanPickerModal open={planOpen} onClose={() => setPlanOpen(false)} />
     </section>
   );
 }
+
+
+

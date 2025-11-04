@@ -16,7 +16,6 @@ function SuccessContent() {
   const addSingleCredit = useResumeStore((s) => s.addSingleCredit);
 
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionIdResolved, setSessionIdResolved] = useState(false);
 
@@ -54,21 +53,11 @@ function SuccessContent() {
     const confirm = async () => {
       try {
         setStatus('loading');
-        setErrorMessage(null);
         const res = await fetch(`/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`, {
           headers: { 'Cache-Control': 'no-store' },
         });
-        let data: any = null;
-        try {
-          data = await res.json();
-        } catch {
-          /* ignore */
-        }
-        if (!res.ok || !data?.token || !data?.type) {
-          const detail = data?.error || `Confirm failed (status ${res.status})`;
-          throw new Error(detail);
-        }
-
+        const data = await res.json();
+        if (!res.ok || !data?.token || !data?.type) throw new Error('Confirm failed');
         setToken(data.token);
         setPurchaseType(data.type);
 
@@ -102,7 +91,6 @@ function SuccessContent() {
         router.replace('/dashboard');
       } catch (e) {
         console.error('[UNLOCK_SUCCESS_CONFIRM_ERROR]', e);
-        setErrorMessage((e as Error)?.message || 'Unknown error');
         setStatus('error');
       }
     };
@@ -130,28 +118,7 @@ function SuccessContent() {
       <main className="min-h-screen flex items-center justify-center bg-gray-950 text-red-400 px-4">
         <div className="text-center max-w-md">
           <p className="mb-2">Something went wrong confirming your purchase.</p>
-          {errorMessage ? (
-            <p className="mb-3 text-xs text-red-200">{errorMessage}</p>
-          ) : null}
-          <p className="text-sm text-gray-400 mb-4">
-            You can close this tab and return to your dashboard to retry.
-          </p>
-          <button
-            onClick={() => {
-              if (!sessionId) {
-                router.replace('/dashboard');
-                return;
-              }
-              setStatus('loading');
-              setErrorMessage(null);
-              // Trigger the effect again by toggling sessionIdResolved.
-              setSessionIdResolved(false);
-              setTimeout(() => setSessionIdResolved(true), 0);
-            }}
-            className="px-5 py-2 rounded-full border border-red-300 text-sm font-semibold text-red-100 hover:bg-red-500/20 transition"
-          >
-            Try again
-          </button>
+          <p className="text-sm text-gray-400">You can close this tab and return to your dashboard to retry.</p>
         </div>
       </main>
     );

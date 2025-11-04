@@ -14,7 +14,7 @@ export default function EntitlementGate() {
       try {
         const res = await fetch(`/api/auth/verify?token=${encodeURIComponent(token)}`);
         const data = await res.json();
-        if (data?.valid) {
+        if (data?.valid && data.type === 'pro') {
           setPaid(true);
           setProAccessUntil(data.exp ? data.exp * 1000 : null);
         } else {

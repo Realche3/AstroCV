@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: '.next-build',
   eslint: {
     // Ignore ESLint errors during production builds to avoid blocking on style/strict rules
     ignoreDuringBuilds: true,

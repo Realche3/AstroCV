@@ -60,7 +60,7 @@ interface TemplateDefinition {
   experienceStyle?: 'standard' | 'compact' | 'metrics';
 }
 
-const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> = {
+export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> = {
   'corporate-classic': {
     id: 'corporate-classic',
     category: 'corporate',

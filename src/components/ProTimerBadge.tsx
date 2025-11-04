@@ -39,7 +39,7 @@ export default function ProTimerBadge() {
         title="Your Pro hour is active"
       >
         <span className="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-        Pro active • {formatTimeLeft(left)}
+        Pro hour - {formatTimeLeft(left)} left
       </span>
     );
   }
@@ -51,7 +51,9 @@ export default function ProTimerBadge() {
       title="Your Pro hour has ended"
     >
       <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-      Pro expired
+      Pro hour ended
     </span>
   );
 }
+
+

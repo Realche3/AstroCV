@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProTimerBadge from '@/components/ProTimerBadge';
+import { useResumeStore } from '@/app/store/resumeStore';
+import { CircleStackIcon } from '@heroicons/react/24/solid';
 
 export default function NavBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const singleCredits = useResumeStore((s) => s.singleCredits);
+  const freeTrialUsed = useResumeStore((s) => s.freeTrialUsed);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -22,6 +26,21 @@ export default function NavBar() {
     { name: 'Terms', href: '/terms' },
     { name: 'Privacy', href: '/privacy' },
   ];
+
+  const { availableCredits, badgeStyle, badgeIconColor, badgeLabelMobile } = useMemo(() => {
+    const trialCredits = freeTrialUsed ? 0 : 1;
+    const total = singleCredits + trialCredits;
+    const hasCredits = total > 0;
+    return {
+      availableCredits: total,
+      badgeStyle: hasCredits
+        ? 'border-emerald-400/60 bg-emerald-500/15 text-emerald-100'
+        : 'border-red-400/60 bg-red-500/15 text-red-100',
+      badgeIconColor: hasCredits ? 'text-emerald-300' : 'text-red-300',
+      badgeLabelMobile:
+        total === 1 ? '1 credit left' : `${total} credits left`,
+    };
+  }, [singleCredits, freeTrialUsed]);
 
   return (
     <header className={`fixed top-12 md:top-10 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-gray-900/95 backdrop-blur-md py-2 shadow-xl' : 'bg-gray-900/80 backdrop-blur-sm py-4'}`}>
@@ -65,6 +84,11 @@ export default function NavBar() {
                 />
               </Link>
             ))}
+            <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${badgeStyle}`}>
+              <CircleStackIcon className={`h-4 w-4 ${badgeIconColor}`} />
+              <span className="min-w-[1.5ch] text-center">{availableCredits}</span>
+              <span className="uppercase tracking-wide text-[10px]">credit{availableCredits === 1 ? '' : 's'}</span>
+            </span>
             <ProTimerBadge />
             <a
               href="#upload-section"
@@ -119,6 +143,12 @@ export default function NavBar() {
             className="md:hidden overflow-hidden bg-gray-900/95"
           >
             <div className="px-2 pt-2 pb-4 space-y-1 sm:px-3">
+              <div className="px-3 py-2">
+                <span className={`inline-flex w-full items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${badgeStyle}`}>
+                  <CircleStackIcon className={`h-4 w-4 ${badgeIconColor}`} />
+                  <span className="whitespace-nowrap">{badgeLabelMobile}</span>
+                </span>
+              </div>
               {navItems.map((item) => (
                 <Link
                   key={item.name}
