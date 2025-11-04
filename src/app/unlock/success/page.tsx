@@ -13,17 +13,38 @@ function SuccessContent() {
   const setProAccessUntil = useResumeStore((s) => s.setProAccessUntil);
   const setToken = useResumeStore((s) => s.setToken);
   const setPurchaseType = useResumeStore((s) => s.setPurchaseType);
+  const addSingleCredit = useResumeStore((s) => s.addSingleCredit);
 
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionIdResolved, setSessionIdResolved] = useState(false);
 
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
-    if (!sessionId) {
-      setStatus('error');
-      return;
+    let foundId: string | null = null;
+    const queryId = searchParams.get('session_id');
+    if (queryId) {
+      foundId = queryId;
+    } else if (typeof window !== 'undefined') {
+      const hash = window.location.hash.startsWith('#')
+        ? window.location.hash.slice(1)
+        : window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash);
+        const hashId = params.get('session_id');
+        if (hashId) {
+          foundId = hashId;
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
     }
+    setSessionId(foundId);
+    setSessionIdResolved(true);
+  }, [searchParams]);
 
-    // Persist last session ID for recovery if needed
+  useEffect(() => {
+    if (!sessionIdResolved || !sessionId) return;
+
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('astrocv_last_sid', sessionId);
@@ -32,48 +53,74 @@ function SuccessContent() {
 
     const confirm = async () => {
       try {
-        const res = await fetch(`/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`);
-        const data = await res.json();
-        if (!res.ok || !data?.token || !data?.type) throw new Error('Confirm failed');
+        setStatus('loading');
+        setErrorMessage(null);
+        const res = await fetch(`/api/checkout/confirm?session_id=${encodeURIComponent(sessionId)}`, {
+          headers: { 'Cache-Control': 'no-store' },
+        });
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          /* ignore */
+        }
+        if (!res.ok || !data?.token || !data?.type) {
+          const detail = data?.error || `Confirm failed (status ${res.status})`;
+          throw new Error(detail);
+        }
 
-        // Persist token + paid state
         setToken(data.token);
-        setPaid(true);
         setPurchaseType(data.type);
 
         if (data.type === 'pro') {
-          // Only Pro gets a time window
+          setPaid(true);
           if (data.exp) setProAccessUntil(data.exp * 1000);
           else setProAccessUntil(null);
-          // Go to dashboard (unlocked during pro window)
+          try {
+            sessionStorage.setItem(
+              'astrocv_limit_notice',
+              'Pro Hour activated! Unlimited tailoring is unlocked for the next 60 minutes. Head to "Tailor Your Resume" to get started.'
+            );
+            sessionStorage.removeItem('astrocv_plan_prompt');
+          } catch {}
           router.replace('/dashboard');
           return;
         }
 
-        // SINGLE purchase:
-        // Do NOT set proAccessUntil. We’ll auto-download on the dashboard and relock.
         setProAccessUntil(null);
+        addSingleCredit(2);
+        setPaid(true);
 
         try {
-          sessionStorage.setItem('astrocv_autodl', '1'); // dashboard will auto-download once
-        } catch {
-          // ignore
-        }
+          sessionStorage.setItem(
+            'astrocv_limit_notice',
+            `Payment received! You have 2 paid resume credits ready. Head to "Tailor Your Resume" whenever you're ready to use the next one.`
+          );
+          sessionStorage.removeItem('astrocv_plan_prompt');
+        } catch {}
 
-        router.replace('/dashboard'); // dashboard will handle relock for singles
+        router.replace('/dashboard');
       } catch (e) {
         console.error('[UNLOCK_SUCCESS_CONFIRM_ERROR]', e);
+        setErrorMessage((e as Error)?.message || 'Unknown error');
         setStatus('error');
       }
     };
 
     confirm();
-  }, [router, searchParams, setPaid, setProAccessUntil, setToken, setPurchaseType]);
+  }, [sessionIdResolved, sessionId, router, setPaid, setProAccessUntil, setToken, setPurchaseType, addSingleCredit]);
+
+  useEffect(() => {
+    if (!sessionIdResolved) return;
+    if (sessionId) return;
+    const timeout = setTimeout(() => setStatus('error'), 4000);
+    return () => clearTimeout(timeout);
+  }, [sessionIdResolved, sessionId]);
 
   if (status === 'loading') {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-200">
-        <p>Confirming your purchase…</p>
+        <p>Confirming your purchase.</p>
       </main>
     );
   }
@@ -83,18 +130,38 @@ function SuccessContent() {
       <main className="min-h-screen flex items-center justify-center bg-gray-950 text-red-400 px-4">
         <div className="text-center max-w-md">
           <p className="mb-2">Something went wrong confirming your purchase.</p>
-          <p className="text-sm text-gray-400">You can close this tab and return to your dashboard to retry.</p>
+          {errorMessage ? (
+            <p className="mb-3 text-xs text-red-200">{errorMessage}</p>
+          ) : null}
+          <p className="text-sm text-gray-400 mb-4">
+            You can close this tab and return to your dashboard to retry.
+          </p>
+          <button
+            onClick={() => {
+              if (!sessionId) {
+                router.replace('/dashboard');
+                return;
+              }
+              setStatus('loading');
+              setErrorMessage(null);
+              // Trigger the effect again by toggling sessionIdResolved.
+              setSessionIdResolved(false);
+              setTimeout(() => setSessionIdResolved(true), 0);
+            }}
+            className="px-5 py-2 rounded-full border border-red-300 text-sm font-semibold text-red-100 hover:bg-red-500/20 transition"
+          >
+            Try again
+          </button>
         </div>
       </main>
     );
   }
 
-  // Fallback UI if for some reason we didn't navigate (rare)
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-gray-200 px-4">
-      <h1 className="text-2xl font-bold text-blue-400 mb-4">Your Resume is Unlocked!</h1>
+      <h1 className="text-2xl font-bold text-blue-400 mb-4">Your payment is confirmed!</h1>
       <p className="mb-6 text-center max-w-md">
-        We’ll take you back to your dashboard. If the download does not start automatically, you can download it manually there.
+        We'll take you back to the dashboard. Use your new credit anytime to tailor the next job application.
       </p>
       <button
         onClick={() => router.replace('/dashboard')}
