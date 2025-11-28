@@ -76,7 +76,7 @@ export default function HeroSection() {
           transition={{ duration: 0.8 }}
           className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 bg-clip-text text-transparent"
         >
-          AI-Powered Resume Tailoring
+          AI CV & Resume Builder that Tailors in Seconds
         </motion.h1>
 
         {/* Subtitle */}
@@ -86,7 +86,7 @@ export default function HeroSection() {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="mt-6 text-lg md:text-xl text-gray-300 max-w-2xl mx-auto"
         >
-          Get a job-winning resume in 60 seconds. Just upload your resume and paste the job description. We handle the rest.
+          Use AstroCV’s AI resume generator to create professional CVs online. Upload your resume and job description to instantly tailor resumes, cover letters, and follow-up emails.
         </motion.p>
 
         {/* CTA */}
@@ -101,7 +101,7 @@ export default function HeroSection() {
             className="relative group px-6 py-3.5 font-medium rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-blue-500/30 transition-all duration-300"
           >
             <span className="relative z-10 flex items-center justify-center">
-              Get Started Now
+              Build your AI CV now
               <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </span>
           </a>
@@ -109,7 +109,7 @@ export default function HeroSection() {
             href="#how-it-works"
             className="px-6 py-3.5 font-medium rounded-full bg-gray-800 text-white border border-gray-700 hover:border-blue-400 hover:text-blue-400 transition"
           >
-            How It Works
+            See how AstroCV works
           </a>
         </motion.div>
 
