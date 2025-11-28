@@ -1,11 +1,12 @@
 // src/lib/payments/memoryStore.ts
 
-export type UnlockType = 'single' | 'pro';
+export type UnlockType = 'bundle' | 'pro';
 
 export interface PurchaseRecord {
   sessionId: string;
   type: UnlockType;
   expMs: number;           // absolute timestamp in ms when access expires
+  credits?: number | null;
   email?: string | null;
   amountTotal?: number | null;
   createdAtMs: number;

@@ -40,16 +40,34 @@ export async function POST(req: Request) {
       const price = session?.line_items?.data?.[0]?.price as Stripe.Price | null | undefined;
       const priceId = price?.id;
 
-      // Determine type + expiration
-      let type: 'single' | 'pro' = 'single';
-      let expSeconds: number;
+      const priceMap = {
+        starter: process.env.STRIPE_PRICE_STARTER,
+        standard: process.env.STRIPE_PRICE_STANDARD,
+        career: process.env.STRIPE_PRICE_CAREER,
+        hour: process.env.STRIPE_PRICE_HOUR,
+      };
 
-      if (priceId && priceId === process.env.STRIPE_PRICE_HOUR) {
-        type = 'pro';
+      let plan: 'starter' | 'standard' | 'career' | 'hour' | null = null;
+      for (const key of Object.keys(priceMap) as (keyof typeof priceMap)[]) {
+        if (priceId === priceMap[key]) {
+          plan = key;
+          break;
+        }
+      }
+      if (!plan) {
+        console.error('[WEBHOOK] Unknown price id', priceId);
+        return NextResponse.json({ error: 'Unknown price id' }, { status: 400 });
+      }
+
+      // Determine type + expiration
+      let type: 'bundle' | 'pro' = plan === 'hour' ? 'pro' : 'bundle';
+      let expSeconds: number;
+      const credits = plan === 'starter' ? 1 : plan === 'standard' ? 2 : plan === 'career' ? 5 : null;
+
+      if (plan === 'hour') {
         expSeconds = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour
       } else {
-        type = 'single';
-        expSeconds = Math.floor(Date.now() / 1000) + 10 * 60; // 10 minutes
+        expSeconds = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30; // 30 days to use credits/templates
       }
 
       // Save to shared in-memory store for quick confirm lookup
@@ -57,6 +75,7 @@ export async function POST(req: Request) {
         sessionId: sessionObj.id,
         type,
         expMs: expSeconds * 1000,
+        credits,
         email: session?.customer_details?.email ?? null,
         amountTotal: session?.amount_total ?? null,
         createdAtMs: Date.now(),

@@ -15,8 +15,9 @@ export async function GET(req: Request) {
     const rec = unlockStore.getBySession(sessionId);
     if (rec) {
       const expSeconds = Math.floor(rec.expMs / 1000);
-      const token = issueAccessToken({ type: rec.type, exp: expSeconds, sid: rec.sessionId, email: rec.email ?? undefined });
-      const response = NextResponse.json({ token, type: rec.type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
+      const normalizedType: 'bundle' | 'pro' = rec.type === 'pro' ? 'pro' : 'bundle';
+      const token = issueAccessToken({ type: normalizedType, exp: expSeconds, sid: rec.sessionId, email: rec.email ?? undefined });
+      const response = NextResponse.json({ token, type: normalizedType, exp: expSeconds, credits: rec.credits ?? null }, { headers: { 'Cache-Control': 'no-store' } });
       response.cookies.delete('tailor_quota');
       return response;
     }
@@ -31,20 +32,31 @@ export async function GET(req: Request) {
     const priceId = price?.id;
     if (!priceId) return NextResponse.json({ error: 'Missing price' }, { status: 400 });
 
-    let type: 'single' | 'pro' = 'single';
-    let expSeconds: number;
+    const priceMap = {
+      starter: process.env.STRIPE_PRICE_STARTER,
+      standard: process.env.STRIPE_PRICE_STANDARD,
+      career: process.env.STRIPE_PRICE_CAREER,
+      hour: process.env.STRIPE_PRICE_HOUR,
+    };
 
-    if (priceId === process.env.STRIPE_PRICE_HOUR) {
-      type = 'pro';
-      expSeconds = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour
-    } else {
-      // single purchase: short window
-      type = 'single';
-      expSeconds = Math.floor(Date.now() / 1000) + 10 * 60;
+    let plan: 'starter' | 'standard' | 'career' | 'hour' | null = null;
+    for (const key of Object.keys(priceMap) as (keyof typeof priceMap)[]) {
+      if (priceId === priceMap[key]) {
+        plan = key;
+        break;
+      }
     }
+    if (!plan) return NextResponse.json({ error: 'Unknown price' }, { status: 400 });
+
+    const type: 'bundle' | 'pro' = plan === 'hour' ? 'pro' : 'bundle';
+    const credits = plan === 'starter' ? 1 : plan === 'standard' ? 2 : plan === 'career' ? 5 : null;
+    const expSeconds =
+      type === 'pro'
+        ? Math.floor(Date.now() / 1000) + 60 * 60
+        : Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30; // 30 days to use credits/templates
 
     const token = issueAccessToken({ type, exp: expSeconds, sid: sessionId, email: session.customer_details?.email ?? undefined });
-    const response = NextResponse.json({ token, type, exp: expSeconds }, { headers: { 'Cache-Control': 'no-store' } });
+    const response = NextResponse.json({ token, type, exp: expSeconds, credits }, { headers: { 'Cache-Control': 'no-store' } });
     response.cookies.delete('tailor_quota');
     return response;
   } catch (err) {

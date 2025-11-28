@@ -20,7 +20,7 @@ export default function NavBar() {
   }, []);
 
   const navItems = [
-    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'My Documents', href: '/dashboard' },
     { name: 'FAQs', href: '/#faq' },
     { name: 'Contact', href: '/#contact' },
     { name: 'Terms', href: '/terms' },
@@ -43,7 +43,7 @@ export default function NavBar() {
   }, [singleCredits, freeTrialUsed]);
 
   return (
-    <header className={`fixed top-12 md:top-10 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-gray-900/95 backdrop-blur-md py-2 shadow-xl' : 'bg-gray-900/80 backdrop-blur-sm py-4'}`}>
+    <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-gray-900/95 backdrop-blur-md py-2 shadow-xl' : 'bg-gray-900/80 backdrop-blur-sm py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}

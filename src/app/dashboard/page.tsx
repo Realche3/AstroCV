@@ -11,12 +11,19 @@ import ResumePreviewViewer from '@/components/ResumePreviewViewer';
 import CoverLetterPreviewViewer from '@/components/CoverLetterPreviewViewer';
 import EmailPreviewViewer from '@/components/EmailPreviewViewer';
 
-import TailoredResumePDF, { resumeTemplateGroups, normalizeTemplateId, ResumeTemplateId, templateDefinitions } from '@/components/TailoredResumePDF';
+import TailoredResumePDF, {
+  resumeTemplateGroups,
+  resumeTemplateOptions,
+  normalizeTemplateId,
+  ResumeTemplateId,
+  templateDefinitions,
+} from '@/components/TailoredResumePDF';
 import TailoredCoverLetterPDF from '@/components/TailoredCoverLetterPDF';
 import TailoredEmailPDF from '@/components/TailoredEmailPDF';
 import PlanPickerModal from '@/components/PlanPickerModal';
 import { useProAccess, formatTimeLeft } from '@/hooks/useProAccess';
-import { SparklesIcon, ExclamationTriangleIcon, CircleStackIcon } from '@heroicons/react/24/solid';
+import { SparklesIcon, ExclamationTriangleIcon, CircleStackIcon, LockClosedIcon } from '@heroicons/react/24/solid';
+import { FREE_TEMPLATE_IDS, isTemplatePro } from '@/lib/templates/access';
 
 type ResumeSectionKey =
   | 'summary'
@@ -71,12 +78,22 @@ export default function DashboardPage() {
   const singleCredits = useResumeStore((s) => s.singleCredits);
 
   const isPaid = useResumeStore((s) => s.isPaid);
+  const templateAccessUntil = useResumeStore((s) => s.templateAccessUntil);
   const { isProActive, isExpired, timeLeftMs } = useProAccess();
+  const hasPaidAccess = useMemo(
+    () => {
+      const templateEntitled = templateAccessUntil ? templateAccessUntil > Date.now() : false;
+      return isProActive || singleCredits > 0 || isPaid || templateEntitled;
+    },
+    [isProActive, singleCredits, isPaid, templateAccessUntil]
+  );
+  const canAccessLetters = hasPaidAccess;
 
   const setToken = useResumeStore((s) => s.setToken);
   const setPaid = useResumeStore((s) => s.setPaid);
   const setPurchaseType = useResumeStore((s) => s.setPurchaseType);
   const setResumeTemplate = useResumeStore((s) => s.setResumeTemplate);
+  const setTemplateAccessUntil = useResumeStore((s) => s.setTemplateAccessUntil);
 
   const selectTemplateById = useCallback((id: ResumeTemplateId) => {
     if (id !== resumeTemplateId) {
@@ -91,6 +108,18 @@ export default function DashboardPage() {
       setResumeTemplate(effectiveTemplateId);
     }
   }, [effectiveTemplateId, resumeTemplateId, setResumeTemplate]);
+
+  const firstFreeTemplate = useMemo(
+    () => (FREE_TEMPLATE_IDS[0] as ResumeTemplateId) || ('corporate-classic' as ResumeTemplateId),
+    []
+  );
+
+  const isTemplateLocked = useCallback(
+    (id: ResumeTemplateId) => {
+      return isTemplatePro(id) && !hasPaidAccess;
+    },
+    [hasPaidAccess]
+  );
 
   const [activeTemplateCategory, setActiveTemplateCategory] = useState(() => {
     const match = resumeTemplateGroups.find((group) =>
@@ -118,6 +147,14 @@ export default function DashboardPage() {
     return resumeTemplateGroups.find((item) => item.id === activeTemplateCategory);
   }, [activeTemplateCategory]);
 
+  useEffect(() => {
+    if (!isTemplateLocked(effectiveTemplateId)) return;
+    if (firstFreeTemplate && firstFreeTemplate !== effectiveTemplateId) {
+      setResumeTemplate(firstFreeTemplate);
+      setTemplateNotice('Pro templates are locked right now. We switched you to a free template.');
+    }
+  }, [effectiveTemplateId, firstFreeTemplate, isTemplateLocked, setResumeTemplate]);
+
   const [recovering, setRecovering] = useState(false);
   const [recoverMsg, setRecoverMsg] = useState<string | null>(null);
   const [coverLetterCopied, setCoverLetterCopied] = useState(false);
@@ -125,6 +162,7 @@ export default function DashboardPage() {
   const coverLetterCopyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const followUpCopyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
+  const [templateNotice, setTemplateNotice] = useState<string | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [activeDocTab, setActiveDocTab] = useState<'resume' | 'coverLetter' | 'followUp'>('resume');
   const creditBanner = useMemo(() => {
@@ -267,6 +305,17 @@ export default function DashboardPage() {
 
   // Plan modal
   // Downloads
+  const requireProForDocx = useCallback(
+    async (action: () => Promise<void> | void) => {
+      if (!isProActive) {
+        setPlanOpen(true);
+        return;
+      }
+      await action();
+    },
+    [isProActive, setPlanOpen]
+  );
+
   const handleDownloadResume = useCallback(async () => {
     if (!tailoredResume) return;
     const blob = await renderPdf(
@@ -799,6 +848,7 @@ export default function DashboardPage() {
       setToken(data.token);
       setPaid(true);
       setPurchaseType(data.type);
+      if (data.exp) setTemplateAccessUntil(data.exp * 1000);
       setRecoverMsg('Purchase recovered. You can download now.');
     } catch (e) {
       const msg = (e as any)?.message || 'Could not recover purchase.';
@@ -811,12 +861,12 @@ export default function DashboardPage() {
   // Auto-download handling (single purchase)
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-950 to-gray-900 py-20 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-6 text-center text-blue-400">
-          Your Tailored Documents
-        </h1>
+      <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-blue-400">My Documents</h1>
+          <p className="text-sm text-gray-400">Preview, switch templates, and export everything you generated.</p>
+        </div>
 
-        {/* Hydration placeholder */}
         {!hydrated ? (
           <div className="text-center text-gray-400">Loading...</div>
         ) : !tailoredResume ? (
@@ -830,302 +880,376 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
-            {limitNotice && (
-              <div className="rounded-xl border border-blue-800/60 bg-blue-900/40 px-4 py-3 text-blue-100">
-                {limitNotice}
+          <>
+            {/* Slim status bar */}
+            <div className="rounded-2xl border border-gray-800/70 bg-gray-900/80 px-4 py-3 sm:px-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shadow-lg shadow-blue-900/10">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-800/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-200">
+                  {activeTemplateDefinition?.label || 'Template'}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+                    isProActive
+                      ? 'border-blue-500/60 bg-blue-500/15 text-blue-100'
+                      : singleCredits > 0
+                      ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-100'
+                      : 'border-gray-700 bg-gray-800/70 text-gray-200'
+                  }`}
+                >
+                  {isProActive
+                    ? `Pro hour (${formatTimeLeft(timeLeftMs)})`
+                    : singleCredits > 0
+                    ? `${singleCredits} credit${singleCredits === 1 ? '' : 's'}`
+                    : 'Free access'}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.25em] text-blue-100">
+                  DOCX: Pro only
+                </span>
               </div>
-            )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={goToUploadSection}
+                  className="rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                >
+                  Tailor another
+                </button>
+                <button
+                  onClick={() => setPlanOpen(true)}
+                  className="rounded-full border border-gray-700 bg-gray-800 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-100"
+                >
+                  Upgrade / add credits
+                </button>
+              </div>
+            </div>
 
-            <section className="rounded-3xl border border-gray-800/70 bg-gray-900/50 p-5 sm:p-6 shadow-lg shadow-blue-900/10">
-              <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-100 sm:text-xl">Choose your template</h2>
-                    <p className="text-sm text-gray-400">
-                      Switch layouts anytime — your downloads update instantly.
-                    </p>
+            <div className="grid gap-6 lg:grid-cols-[1fr,1.15fr] xl:grid-cols-[1fr,1.25fr]">
+              <div className="space-y-4">
+                <section className="rounded-2xl border border-gray-800/70 bg-gray-900/70 p-4 sm:p-5 shadow-lg shadow-blue-900/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-100 sm:text-xl">Templates</h2>
+                      <p className="text-xs text-gray-500 sm:text-sm">Pro templates show a lock. Scroll to explore.</p>
+                    </div>
+                    <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-800/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400">
+                      {activeCategoryMeta?.title || 'Templates'}
+                    </span>
                   </div>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-gray-800 bg-gray-900/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-gray-400">
-                    {templateDefinitions[effectiveTemplateId]?.label || 'Template'}
-                  </span>
-                </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {resumeTemplateGroups.map((group) => {
-                    const isActiveGroup = group.id === activeTemplateCategory;
-                    return (
-                      <button
-                        key={group.id}
-                        type="button"
-                        onClick={() => setActiveTemplateCategory(group.id)}
-                        aria-pressed={isActiveGroup}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                          isActiveGroup
-                            ? 'border-blue-500/80 bg-blue-500/15 text-blue-100 shadow shadow-blue-900/30'
-                            : 'border-gray-800/70 text-gray-300 hover:border-blue-500/40 hover:text-blue-100'
-                        }`}
-                      >
-                        {group.title}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {activeCategoryMeta?.description ? (
-                  <p className="text-xs text-gray-500">{activeCategoryMeta.description}</p>
-                ) : null}
-
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-gray-900/50 to-transparent" />
-                  <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-gray-900/50 to-transparent" />
-                  <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pr-4 sm:gap-4 sm:pr-6">
-                    {visibleTemplates.map((option) => {
-                      const isActive = option.id === effectiveTemplateId;
-                      const definition = templateDefinitions[option.id];
-                      const accent = definition?.accent ?? '#3b82f6';
-                      const previewGradient = `linear-gradient(135deg, ${accent}33, ${accent}05)`;
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {resumeTemplateGroups.map((group) => {
+                      const isActiveGroup = group.id === activeTemplateCategory;
                       return (
                         <button
-                          key={option.id}
+                          key={group.id}
                           type="button"
-                          onClick={() => selectTemplateById(option.id)}
-                          aria-pressed={isActive}
-                          className={`snap-start rounded-2xl border px-5 py-4 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
-                            isActive
-                              ? 'border-blue-500/90 bg-blue-500/10 text-blue-100 shadow-lg shadow-blue-900/30'
-                              : 'border-gray-800/70 bg-gray-900/60 text-gray-200 hover:border-blue-500/40 hover:text-blue-100'
-                          } min-w-[220px]`}
+                          onClick={() => setActiveTemplateCategory(group.id)}
+                          aria-pressed={isActiveGroup}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                            isActiveGroup
+                              ? 'border-blue-500/80 bg-blue-500/15 text-blue-100 shadow shadow-blue-900/30'
+                              : 'border-gray-800/70 text-gray-300 hover:border-blue-500/40 hover:text-blue-100'
+                          }`}
                         >
-                          <div
-                            className="mb-3 h-20 overflow-hidden rounded-xl border border-gray-800/60"
-                            style={{ background: previewGradient }}
-                          >
-                            <div className="h-full w-full bg-gradient-to-br from-white/5 via-transparent to-black/10" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-semibold">{option.label}</span>
-                              {isActive ? (
-                                <span className="rounded-full border border-blue-400/80 bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-200">
-                                  Selected
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="text-xs text-gray-400">{option.description}</p>
-                          </div>
+                          {group.title}
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              </div>
-            </section>
 
-            <section className="rounded-2xl border border-gray-800/70 bg-gray-900/40 shadow-lg">
-              <div className="p-5 sm:p-6 space-y-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-blue-100">
-                      Latest package
-                    </span>
-                    <div>
-                      <h2 className="text-2xl font-semibold text-gray-100 sm:text-3xl">
-                        {tailoredResume.header.name || 'Tailored package'}
-                      </h2>
+                  {activeCategoryMeta?.description ? (
+                    <p className="mt-2 text-xs text-gray-500">{activeCategoryMeta.description}</p>
+                  ) : null}
+
+                  <div className="mt-4 relative">
+                    <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-gray-800 scrollbar-track-transparent">
+                      {visibleTemplates.map((option) => {
+                        const isActive = option.id === effectiveTemplateId;
+                        const definition = templateDefinitions[option.id];
+                        const accent = definition?.accent ?? '#3b82f6';
+                        const isLocked = isTemplateLocked(option.id);
+                        const isPro = isTemplatePro(option.id);
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => (isLocked ? setPlanOpen(true) : selectTemplateById(option.id))}
+                            aria-pressed={isActive}
+                            className={`snap-start w-[240px] sm:w-[260px] h-[320px] rounded-2xl border text-left transition relative overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${
+                              isActive
+                                ? 'border-blue-500/80 bg-blue-500/10 text-blue-50 shadow-lg shadow-blue-900/30'
+                                : 'border-gray-800/70 bg-gray-900/70 text-gray-200 hover:border-blue-500/40 hover:text-blue-100'
+                            }`}
+                          >
+                            <div
+                              className="h-28 rounded-t-2xl"
+                              style={{ background: `linear-gradient(135deg, ${accent}40, ${accent}0d)` }}
+                            />
+                            <div className="p-4 space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-sm font-semibold leading-snug">{option.label}</span>
+                                <span
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                                  isPro
+                                    ? 'border-blue-400/80 bg-blue-500/15 text-blue-100'
+                                    : 'border-gray-700 bg-gray-800/70 text-gray-300'
+                                }`}
+                              >
+                                {isPro ? <LockClosedIcon className="h-3 w-3" /> : null}
+                                  {isPro ? 'Pro' : 'Free'}
+                              </span>
+                            </div>
+                              <p className="text-xs text-gray-400 line-clamp-3">{option.description}</p>
+                            </div>
+                            {isActive ? (
+                              <div className="absolute top-3 right-3 rounded-full border border-blue-400/70 bg-blue-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-100">
+                                Selected
+                              </div>
+                            ) : null}
+                            {isLocked ? (
+                              <div className="absolute inset-0 rounded-2xl bg-gray-950/60 backdrop-blur-[1px] flex items-center justify-center text-[11px] font-semibold text-blue-100">
+                                Unlock with Pro or credits
+                              </div>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div className="space-y-4 lg:sticky lg:top-28 self-start">
+                {limitNotice ? (
+                  <div className="rounded-xl border border-blue-800/60 bg-blue-900/40 px-4 py-3 text-blue-100">
+                    {limitNotice}
+                  </div>
+                ) : null}
+                {templateNotice ? (
+                  <div className="rounded-xl border border-gray-800/70 bg-gray-900/60 px-4 py-3 text-gray-200">
+                    {templateNotice}
+                  </div>
+                ) : null}
+
+                <section className="rounded-2xl border border-gray-800/70 bg-gray-900/60 shadow-lg">
+                  <div className="p-5 sm:p-6 space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-100 sm:text-2xl">
+                          {tailoredResume.header.name || 'Tailored package'}
+                        </h2>
+                        <p className="text-sm text-gray-400">
+                          Your resume, cover letter, and follow-up email stay saved here.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {docTabs.map((tab) => {
+                          const isActive = tab.id === activeDocTab;
+                          return (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActiveDocTab(tab.id)}
+                              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                                isActive
+                                  ? 'border-blue-500/80 bg-blue-500/15 text-blue-100 shadow shadow-blue-900/30'
+                                  : 'border-gray-800/70 text-gray-300 hover:border-blue-500/50 hover:text-blue-100'
+                              }`}
+                            >
+                              {tab.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-800/60 bg-gray-900/50 px-4 py-3">
+                      <p className="text-xs text-gray-500 sm:text-sm">{activeTabMeta.helper}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {activeDocTab === 'resume' ? (
+                          <>
+                            <button
+                              onClick={handleDownloadResume}
+                              className="inline-flex items-center rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                            >
+                              Download PDF
+                            </button>
+                            <button
+                              onClick={() => requireProForDocx(handleDownloadResumeDocx)}
+                              className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                                isProActive
+                                  ? 'border-blue-400/70 bg-blue-500/10 text-blue-100 hover:border-blue-300 hover:text-white'
+                                  : 'border-blue-500/50 bg-blue-500/10 text-blue-100 hover:border-blue-400'
+                              }`}
+                            >
+                              {isProActive ? 'Download DOCX' : 'DOCX (Pro)'}
+                            </button>
+                          </>
+                        ) : null}
+                        {activeDocTab === 'coverLetter' ? (
+                          <>
+                            {canAccessLetters ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={handleCopyCoverLetter}
+                                  disabled={!coverLetter || !coverLetter.trim()}
+                                  className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                                    coverLetterCopied
+                                      ? 'border-blue-500 bg-blue-500/10 text-blue-100'
+                                      : 'border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-200'
+                                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                                >
+                                  {coverLetterCopied ? 'Copied!' : 'Copy'}
+                                </button>
+                                <button
+                                  onClick={handleDownloadCoverLetter}
+                                  className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-200"
+                                >
+                                  Download PDF
+                                </button>
+                                <button
+                                  onClick={() => requireProForDocx(handleDownloadCoverLetterDocx)}
+                                  disabled={!coverLetter || !coverLetter.trim()}
+                                  className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                                    isProActive
+                                      ? 'border-blue-400/60 bg-blue-500/10 text-blue-100 hover:border-blue-300 hover:text-white'
+                                      : 'border-blue-500/50 bg-blue-500/10 text-blue-100'
+                                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                                >
+                                  {isProActive ? 'Download DOCX' : 'DOCX (Pro)'}
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setPlanOpen(true)}
+                                className="inline-flex items-center rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                              >
+                                Unlock cover letter
+                              </button>
+                            )}
+                          </>
+                        ) : null}
+                        {activeDocTab === 'followUp' ? (
+                          <>
+                            {canAccessLetters ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={handleCopyFollowUpEmail}
+                                  disabled={!followUpEmail || !followUpEmail.trim()}
+                                  className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                                    followUpCopied
+                                      ? 'border-blue-500 bg-blue-500/10 text-blue-100'
+                                      : 'border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-200'
+                                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                                >
+                                  {followUpCopied ? 'Copied!' : 'Copy'}
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setPlanOpen(true)}
+                                className="inline-flex items-center rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                              >
+                                Unlock follow-up email
+                              </button>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-gray-800/60 bg-gray-900/50">
+                      {activeDocTab === 'resume' ? (
+                        <div className="h-[680px] sm:h-[760px]">
+                          <ResumePreviewViewer
+                            tailoredResume={tailoredResume}
+                            templateId={effectiveTemplateId}
+                            locked={false}
+                          />
+                        </div>
+                      ) : null}
+                      {activeDocTab === 'coverLetter' ? (
+                        <div className="relative h-[520px] sm:h-[680px]">
+                          <CoverLetterPreviewViewer
+                            name={tailoredResume.header.name}
+                            email={tailoredResume.header.email}
+                            content={coverLetter || ''}
+                          />
+                          {!canAccessLetters && (
+                            <div className="absolute inset-0 backdrop-blur-[3px] bg-gray-950/40 flex items-center justify-center">
+                              <div className="text-center space-y-3">
+                                <p className="text-gray-200 font-semibold">Unlock cover letter previews</p>
+                                <p className="text-sm text-gray-400">Pro or a paid credit unlocks this document.</p>
+                                <button
+                                  onClick={() => setPlanOpen(true)}
+                                  className="inline-flex items-center rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                                >
+                                  Upgrade to access
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                      {activeDocTab === 'followUp' ? (
+                        <div className="relative h-[520px] sm:h-[680px]">
+                          <EmailPreviewViewer
+                            name={tailoredResume.header.name}
+                            email={tailoredResume.header.email}
+                            content={followUpEmail || ''}
+                          />
+                          {!canAccessLetters && (
+                            <div className="absolute inset-0 backdrop-blur-[3px] bg-gray-950/40 flex items-center justify-center">
+                              <div className="text-center space-y-3">
+                                <p className="text-gray-200 font-semibold">Unlock follow-up emails</p>
+                                <p className="text-sm text-gray-400">Pro or a paid credit unlocks this document.</p>
+                                <button
+                                  onClick={() => setPlanOpen(true)}
+                                  className="inline-flex items-center rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
+                                >
+                                  Upgrade to access
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </section>
+
+                {creditBanner ? <div>{creditBanner}</div> : null}
+
+                <section className="rounded-2xl border border-gray-800/70 bg-gray-900/40 p-5 sm:p-6 shadow-lg">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold text-gray-100 sm:text-xl">
+                        Ready for the next role?
+                      </h3>
                       <p className="text-sm text-gray-400">
-                        Your resume, cover letter, and follow-up email stay saved here. Switch tabs to browse each document.
+                        Upload a fresh resume or job description and we'll tailor a new package in seconds. Your current documents stay saved here.
                       </p>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-start gap-2 text-sm text-gray-400 sm:items-end">
-                    {activeTemplateDefinition ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-gray-700 bg-gray-800/60 px-3 py-1 text-xs text-gray-300 whitespace-nowrap">
-                        Template:{' '}
-                        <span className="font-medium text-gray-100">{activeTemplateDefinition.label}</span>
-                      </span>
-                    ) : null}
-                    {!isPaid && (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <button
-                        onClick={handleRecover}
-                        disabled={recovering}
-                        className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-700 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-200 disabled:opacity-50"
-                        title="Recover your purchase if the download didn't start"
+                        onClick={goToUploadSection}
+                        className="inline-flex items-center justify-center rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 whitespace-nowrap"
                       >
-                        {recovering ? 'Recovering purchase...' : 'Recover purchase'}
+                        Tailor another resume
                       </button>
-                    )}
-                    {!isPaid && recoverMsg ? (
-                      <p className="max-w-[240px] text-xs text-gray-500 sm:text-right">{recoverMsg}</p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {docTabs.map((tab) => {
-                    const isActive = tab.id === activeDocTab;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveDocTab(tab.id)}
-                        className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                          isActive
-                            ? 'border-blue-500/80 bg-blue-500/15 text-blue-100 shadow shadow-blue-900/30'
-                            : 'border-gray-800/70 text-gray-300 hover:border-blue-500/50 hover:text-blue-100'
-                        }`}
+                      <Link
+                        href="/#upload-section"
+                        className="inline-flex items-center justify-center rounded-full border border-gray-700 px-5 py-2 text-sm font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-200 whitespace-nowrap"
                       >
-                        {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <p className="text-xs text-gray-500 sm:text-sm">{activeTabMeta.helper}</p>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-800/60 bg-gray-900/50 px-4 py-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
-                    {activeTabMeta.label} actions
+                        View upload options
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {activeDocTab === 'resume' ? (
-                      <>
-                        <button
-                          onClick={handleDownloadResume}
-                          className="inline-flex items-center rounded-full bg-blue-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600"
-                        >
-                          Download PDF
-                        </button>
-                        <button
-                          onClick={handleDownloadResumeDocx}
-                          className="inline-flex items-center rounded-full border border-blue-400/70 bg-blue-500/10 px-4 py-2 text-xs font-semibold text-blue-100 transition hover:border-blue-300 hover:text-white"
-                        >
-                          Download DOCX
-                        </button>
-                      </>
-                    ) : null}
-                    {activeDocTab === 'coverLetter' ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleCopyCoverLetter}
-                          disabled={!coverLetter || !coverLetter.trim()}
-                          className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                            coverLetterCopied
-                              ? 'border-blue-500 bg-blue-500/10 text-blue-100'
-                              : 'border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-200'
-                          } disabled:cursor-not-allowed disabled:opacity-60`}
-                        >
-                          {coverLetterCopied ? 'Copied!' : 'Copy'}
-                        </button>
-                        <button
-                          onClick={handleDownloadCoverLetter}
-                          className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-200"
-                        >
-                          Download PDF
-                        </button>
-                        <button
-                          onClick={handleDownloadCoverLetterDocx}
-                          disabled={!coverLetter || !coverLetter.trim()}
-                          className="inline-flex items-center rounded-full border border-blue-400/60 bg-blue-500/10 px-4 py-2 text-xs font-semibold text-blue-100 transition hover:border-blue-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Download DOCX
-                        </button>
-                      </>
-                    ) : null}
-                    {activeDocTab === 'followUp' ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleCopyFollowUpEmail}
-                          disabled={!followUpEmail || !followUpEmail.trim()}
-                          className={`inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                            followUpCopied
-                              ? 'border-blue-500 bg-blue-500/10 text-blue-100'
-                              : 'border-gray-700 text-gray-200 hover:border-blue-400 hover:text-blue-200'
-                          } disabled:cursor-not-allowed disabled:opacity-60`}
-                        >
-                          {followUpCopied ? 'Copied!' : 'Copy'}
-                        </button>
-                        <button
-                          onClick={handleDownloadEmail}
-                          className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-200"
-                        >
-                          Download PDF
-                        </button>
-                        <button
-                          onClick={handleDownloadEmailDocx}
-                          disabled={!followUpEmail || !followUpEmail.trim()}
-                          className="inline-flex items-center rounded-full border border-blue-400/60 bg-blue-500/10 px-4 py-2 text-xs font-semibold text-blue-100 transition hover:border-blue-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Download DOCX
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-gray-800/60 bg-gray-900/50">
-                  {activeDocTab === 'resume' ? (
-                    <div className="h-[680px] sm:h-[760px]">
-                      <ResumePreviewViewer
-                        tailoredResume={tailoredResume}
-                        templateId={effectiveTemplateId}
-                        locked={false}
-                      />
-                    </div>
-                  ) : null}
-                  {activeDocTab === 'coverLetter' ? (
-                    <div className="h-[520px] sm:h-[680px]">
-                      <CoverLetterPreviewViewer
-                        name={tailoredResume.header.name}
-                        email={tailoredResume.header.email}
-                        content={coverLetter || ''}
-                      />
-                    </div>
-                  ) : null}
-                  {activeDocTab === 'followUp' ? (
-                    <div className="h-[520px] sm:h-[680px]">
-                      <EmailPreviewViewer
-                        name={tailoredResume.header.name}
-                        email={tailoredResume.header.email}
-                        content={followUpEmail || ''}
-                      />
-                    </div>
-                  ) : null}
-                </div>
+                </section>
               </div>
-            </section>
-
-            {creditBanner ? <div>{creditBanner}</div> : null}
-
-            <section className="rounded-2xl border border-gray-800/70 bg-gray-900/40 p-5 sm:p-6 shadow-lg">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-100 sm:text-xl">
-                    Ready for the next role?
-                  </h3>
-                  <p className="text-sm text-gray-400">
-                    Upload a fresh resume or job description and we'll tailor a new package in seconds. Your current documents stay saved here.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <button
-                    onClick={goToUploadSection}
-                    className="inline-flex items-center justify-center rounded-full bg-blue-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 whitespace-nowrap"
-                  >
-                    Tailor another resume
-                  </button>
-                  <Link
-                    href="/#upload-section"
-                    className="inline-flex items-center justify-center rounded-full border border-gray-700 px-5 py-2 text-sm font-semibold text-gray-200 transition hover:border-blue-400 hover:text-blue-200 whitespace-nowrap"
-                  >
-                    View upload options
-                  </Link>
-                </div>
-              </div>
-            </section>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -1134,24 +1258,6 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

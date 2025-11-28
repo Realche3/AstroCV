@@ -4,46 +4,41 @@ import Link from 'next/link';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 const partnerLogos = [
-  { name: 'Fortune 50 Cloud Leader' },
-  { name: 'Global Retail Innovator' },
-  { name: 'Next-Gen Fintech Platform' },
-  { name: 'Healthcare Analytics Group' },
-  { name: 'Mission Operations Firm' },
-  { name: 'Creative Media Collective' },
-  { name: 'SaaS Growth Studio' },
-  { name: 'AI Research Consortium' },
+  { name: 'Northwind Labs' },
+  { name: 'Helix Health' },
+  { name: 'Aurora Finance' },
+  { name: 'Cobalt Robotics' },
+  { name: 'Brightline Media' },
+  { name: 'Summit Analytics' },
+  { name: 'Bluebird Retail' },
+  { name: 'Atlas Logistics' },
 ];
 
 const testimonials = [
   {
-    quote:
-      'AstroCV helped me turn a generic resume into a tailored application that landed interviews within days. The follow-up email copy was a huge bonus.',
+    quote: 'I stopped rewriting the same bullets. Two applications, two callbacks within a week.',
     name: 'Maya Thompson',
-    role: 'Product Manager - SaaS Startups',
+    role: 'Product Manager, B2B SaaS',
   },
   {
-    quote:
-      'The tailoring felt like having an in-house career coach. Every bullet now speaks directly to what hiring managers want to see.',
+    quote: 'The wording finally sounds like me, just sharper. Got past the ATS on roles I used to miss.',
     name: 'Jared Lin',
-    role: 'Senior Software Engineer - Enterprise Platforms',
+    role: 'Senior Software Engineer',
   },
   {
-    quote:
-      'I finally feel confident applying to dream roles. AstroCV made my strengths obvious and saved me hours of editing.',
+    quote: 'It surfaced impact I buried. Recruiters actually asked about the metrics I added.',
     name: 'Alina Fernandez',
-    role: 'UX Researcher - Human-Centered Design',
+    role: 'UX Researcher',
   },
   {
-    quote:
-      'Being able to copy a full follow-up email in seconds is a game changer. Recruiters are actually responding now.',
+    quote: 'Follow-up copy got replies in threads that were ice cold. Huge time saver.',
     name: 'Devin Morales',
-    role: 'Sales Director - B2B Growth',
+    role: 'Sales Director',
   },
   {
-    quote:
-      'AstroCV keeps my resume sharp for every role without guessing which keywords to highlight.',
+    quote: 'Tailored three roles in one evening. Clear keywords without feeling like keyword stuffing.',
     name: 'Priya Shah',
-    role: 'Data Scientist - Analytics Consulting',
+    role: 'Data Scientist',
   },
 ];
 

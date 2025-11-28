@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Link } from '@react-pdf/renderer';
 import { TailoredResume } from '@/types/TailoredResume';
+import { normalizeTemplateId as normalizeTemplateIdShared } from '@/lib/templates/access';
 
 Font.register({
   family: 'Inter',
@@ -41,6 +42,7 @@ interface TemplateDefinition {
   category: TemplateCategoryId;
   label: string;
   description: string;
+  access: 'free' | 'pro';
   accent: string;
   accentLight: string;
   headerVariant: 'standard' | 'band' | 'block';
@@ -66,6 +68,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'corporate',
     label: 'Classic Chronological',
     description: 'Traditional reverse-chronological structure for steady progression.',
+    access: 'free',
     accent: '#1d4ed8',
     accentLight: '#dbeafe',
     headerVariant: 'band',
@@ -78,6 +81,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'corporate',
     label: 'Executive Clean',
     description: 'Bold headings and clear summary space for leadership roles.',
+    access: 'pro',
     accent: '#0f172a',
     accentLight: '#e2e8f0',
     headerVariant: 'band',
@@ -92,6 +96,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'corporate',
     label: 'Modern Professional',
     description: 'Minimal separators and balanced layout for corporate roles.',
+    access: 'pro',
     accent: '#2563eb',
     accentLight: '#dbeafe',
     headerVariant: 'standard',
@@ -104,6 +109,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'tech',
     label: 'Technical Skills-Focused',
     description: 'Skills and tool stack highlighted before detailed experience.',
+    access: 'pro',
     accent: '#0ea5e9',
     accentLight: '#cffafe',
     headerVariant: 'standard',
@@ -117,6 +123,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'tech',
     label: 'Project-Based Layout',
     description: 'Projects showcased with concise impact statements.',
+    access: 'pro',
     accent: '#0284c7',
     accentLight: '#bae6fd',
     headerVariant: 'standard',
@@ -131,6 +138,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'tech',
     label: 'Lean Tech Resume',
     description: 'Single-column minimal layout optimized for ATS parsing.',
+    access: 'free',
     accent: '#0369a1',
     accentLight: '#bfdbfe',
     headerVariant: 'band',
@@ -146,6 +154,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'creative',
     label: 'Minimalist Creative',
     description: 'Light accent tone and generous spacing while staying ATS-safe.',
+    access: 'free',
     accent: '#6366f1',
     accentLight: '#e0e7ff',
     headerVariant: 'block',
@@ -163,6 +172,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'creative',
     label: 'Bold Header Template',
     description: 'Strong header block with clear sections and ATS-friendly text.',
+    access: 'pro',
     accent: '#3b82f6',
     accentLight: '#dbeafe',
     headerVariant: 'block',
@@ -179,6 +189,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'creative',
     label: 'Hybrid Layout',
     description: 'Combines skills and achievements before the detailed timeline.',
+    access: 'pro',
     accent: '#1d4ed8',
     accentLight: '#c7d2fe',
     headerVariant: 'standard',
@@ -193,6 +204,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'health',
     label: 'Academic CV Style',
     description: 'Education-first layout with space for research and credentials.',
+    access: 'pro',
     accent: '#0f766e',
     accentLight: '#ccfbf1',
     headerVariant: 'band',
@@ -207,6 +219,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'health',
     label: 'Healthcare Chronological',
     description: 'Clean structure highlighting clinical experience and credentials.',
+    access: 'free',
     accent: '#15803d',
     accentLight: '#bbf7d0',
     headerVariant: 'band',
@@ -220,6 +233,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'health',
     label: 'Functional Skills Emphasis',
     description: 'Groups core strengths before summarizing role history.',
+    access: 'pro',
     accent: '#0f766e',
     accentLight: '#ccfbf1',
     headerVariant: 'standard',
@@ -233,6 +247,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'operations',
     label: 'Simple Chronological',
     description: 'Straightforward timeline with skills and credentials.',
+    access: 'pro',
     accent: '#334155',
     accentLight: '#e2e8f0',
     headerVariant: 'standard',
@@ -245,6 +260,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'operations',
     label: 'Achievement-Oriented',
     description: 'Highlights measurable outcomes for each position.',
+    access: 'pro',
     accent: '#b45309',
     accentLight: '#fef3c7',
     headerVariant: 'band',
@@ -260,6 +276,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
     category: 'operations',
     label: 'Compact One-Page',
     description: 'Brevity-first layout for quick scanning in the field.',
+    access: 'pro',
     accent: '#475569',
     accentLight: '#e2e8f0',
     headerVariant: 'standard',
@@ -272,24 +289,7 @@ export const templateDefinitions: Record<ResumeTemplateId, TemplateDefinition> =
   },
 };
 
-const legacyTemplateAliases: Record<string, ResumeTemplateId> = {
-  modern: 'corporate-modern',
-  minimal: 'creative-minimal',
-  elegant: 'creative-bold',
-  classic: 'corporate-classic',
-  structured: 'tech-lean',
-  accented: 'creative-minimal',
-};
-
-export function normalizeTemplateId(templateId?: string): ResumeTemplateId {
-  if (templateId && templateDefinitions[templateId as ResumeTemplateId]) {
-    return templateId as ResumeTemplateId;
-  }
-  if (templateId && legacyTemplateAliases[templateId]) {
-    return legacyTemplateAliases[templateId];
-  }
-  return 'corporate-classic';
-}
+export const normalizeTemplateId = normalizeTemplateIdShared;
 
 function createStyles(def: TemplateDefinition) {
   const baseFont = def.bodyFontSize ?? 10.5;
@@ -753,6 +753,7 @@ interface ResumeTemplateOption {
   category: TemplateCategoryId;
   label: string;
   description: string;
+  access: 'free' | 'pro';
 }
 
 export const resumeTemplateOptions: ResumeTemplateOption[] = Object.values(templateDefinitions).map((def) => ({
@@ -760,6 +761,7 @@ export const resumeTemplateOptions: ResumeTemplateOption[] = Object.values(templ
   category: def.category,
   label: def.label,
   description: def.description,
+  access: def.access,
 }));
 
 const TEMPLATE_CATEGORY_META: Record<TemplateCategoryId, { title: string; description: string }> = {

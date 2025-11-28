@@ -6,7 +6,6 @@ import Footer from '@/components/Footer';
 import EntitlementGate from '@/components/EntitlementGate';
 import AnalyticsGate from '@/components/AnalyticsGate';
 import CookieBanner from '@/components/CookieBanner';
-import BetaBanner from '@/components/BetaBanner';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
@@ -35,10 +34,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-gray-900 text-gray-100 min-h-screen`}>
-        <BetaBanner />
         <NavBar />
-        {/* Spacer to account for fixed banner + navbar */}
-        <div className="h-32 md:h-28" />
+        {/* Spacer to account for fixed navbar */}
+        <div className="h-20 md:h-16" />
         <EntitlementGate/>
         <main className="pt-8 pb-16">{children}</main>
         <Footer/>
@@ -48,6 +46,4 @@ export default function RootLayout({
     </html>
   );
 }
-
-
 

@@ -43,6 +43,7 @@ export default function UploadSection() {
   const setFreeTrialUsed = useResumeStore((state) => state.setFreeTrialUsed);
   const singleCredits = useResumeStore((state) => state.singleCredits);
   const consumeSingleCredit = useResumeStore((state) => state.consumeSingleCredit);
+  const resumeTemplateId = useResumeStore((state) => state.resumeTemplateId);
   const { isProActive, timeLeftMs } = useProAccess();
   const hasProUnlimited = isProActive;
 
@@ -104,6 +105,7 @@ export default function UploadSection() {
         formData.append('resumeText', resumeText);
       }
       formData.append('jobDescription', jobDescription);
+      formData.append('templateId', resumeTemplateId);
 
       const accessToken = typeof window !== 'undefined' ? localStorage.getItem('astrocv_access') : null;
       if (accessToken) {
@@ -122,6 +124,11 @@ export default function UploadSection() {
           const errJson = await res.json();
           detail = errJson?.error || '';
         } catch {}
+        if (res.status === 402) {
+          setError(detail || 'This template is available with Pro or a paid credit.');
+          setPlanOpen(true);
+          return;
+        }
         if (res.status === 413) {
           throw new Error('Uploaded file is too large. Please use a smaller file or paste your resume text.');
         }
@@ -339,6 +346,4 @@ export default function UploadSection() {
     </section>
   );
 }
-
-
 

@@ -9,24 +9,51 @@ interface Props {
 
 const plans = [
   {
-    id: 'single' as const,
-    name: 'One-time Credit',
+    id: 'starter' as const,
+    name: 'Starter',
+    price: '$2.99',
+    blurb: 'One full resume kit to try us out.',
+    features: [
+      'One AI-tailored resume matched to your job description',
+      'Matching cover letter and follow-up email',
+      'Download in PDF (DOCX unlocked on paid plan)',
+    ],
+    badge: '',
+    cta: 'Unlock 1 credit',
+  },
+  {
+    id: 'career' as const,
+    name: 'Career Pack',
+    price: '$9.99',
+    blurb: 'Five kits to power a week of applications.',
+    features: [
+      'Five AI-tailored resume kits',
+      'All templates unlocked (free + pro)',
+      'Download in PDF & DOCX formats',
+      'Priority processing compared to Starter',
+    ],
+    badge: 'BEST VALUE',
+    cta: 'Unlock 5 credits',
+  },
+  {
+    id: 'standard' as const,
+    name: 'Standard',
     price: '$4.99',
-    blurb: 'Two complete resume kits whenever you need them.',
+    blurb: 'Get two complete resume kits to use anytime.',
     features: [
       'Two AI-tailored resumes matched to your job descriptions',
       'Matching cover letter with recruiter-ready language',
       'Follow-up email template to stay top-of-mind',
       'Download in both PDF & DOCX formats',
-      'Both credits never expire until you use them',
+      'Credits never expire until you use them',
     ],
-    badge: 'Most popular',
+    badge: 'RECOMMENDED',
     cta: 'Unlock 2 credits',
   },
   {
     id: 'hour' as const,
     name: 'Pro Hour',
-    price: '$10',
+    price: '$12.99',
     blurb: 'Unlimited tailoring while you iterate and apply fast.',
     features: [
       'Unlimited resume+letter generations for 60 minutes',
@@ -35,7 +62,7 @@ const plans = [
       'Priority processing during your hour',
       'Keep everything you generate forever',
     ],
-    badge: 'Best for sprints',
+    badge: 'Pro',
     cta: 'Start Pro hour',
   },
 ];
@@ -65,9 +92,9 @@ export default function PlanPickerModal({ open, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur px-3">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-950/70 via-gray-950/80 to-gray-950/95" aria-hidden />
-      <div className="relative w-full max-w-5xl rounded-3xl border border-blue-900/50 bg-gray-950/95 p-6 sm:p-8 shadow-2xl">
+      <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-blue-900/50 bg-gray-950/95 p-4 sm:p-6 shadow-2xl">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/40 bg-blue-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-blue-100">
@@ -87,16 +114,16 @@ export default function PlanPickerModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid gap-4 sm:gap-5 lg:grid-cols-2">
           {plans.map((plan) => {
             const isLoading = loading === plan.id;
             return (
               <div
                 key={plan.id}
-                className="relative flex h-full flex-col justify-between rounded-2xl border border-gray-800/70 bg-gray-900/60 p-6 shadow-xl transition hover:border-blue-500/60 hover:shadow-blue-900/20"
+                className="relative flex h-full flex-col justify-between rounded-2xl border border-gray-800/70 bg-gray-900/70 p-4 shadow-xl transition hover:border-blue-500/60 hover:shadow-blue-900/20"
               >
                 {plan.badge ? (
-                  <span className="absolute -top-3 left-6 inline-flex items-center rounded-full border border-blue-500/40 bg-blue-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-100">
+                  <span className={`absolute -top-3 left-5 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow ${plan.badge === 'BEST VALUE' ? 'bg-emerald-500 text-emerald-50' : 'bg-blue-500 text-blue-50'}`}>
                     {plan.badge}
                   </span>
                 ) : null}

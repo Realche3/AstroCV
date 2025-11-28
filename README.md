@@ -15,6 +15,46 @@ Minimum required for production on astro-cv.com:
 
 Stripe webhook endpoint: `https://astro-cv.com/api/webhooks/stripe`.
 
+## Quick local setup
+
+1. Install dependencies:
+
+```bash
+npm install
+# or
+pnpm install
+# or
+yarn install
+```
+
+2. Copy the example env and fill in real values:
+
+```bash
+cp .env.example .env.local
+# Edit .env.local and replace placeholder values (OPENAI_API_KEY, STRIPE_SECRET_KEY, etc.)
+```
+
+3. (Optional) If you want to test Stripe webhooks locally, install the Stripe CLI and run:
+
+```bash
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+```
+
+4. Start the dev server:
+
+```bash
+npm run dev
+# or
+#pnpm dev
+# or
+#yarn dev
+```
+
+Notes:
+- Use Node 18+ for best compatibility with Next 15.
+- After editing `.env.local`, restart the dev server to pick up changes.
+- Keep secrets out of git; `.env.local` is gitignored by Next.js by default.
+
 ## Getting Started
 
 First, run the development server:

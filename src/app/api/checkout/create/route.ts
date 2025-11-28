@@ -3,17 +3,26 @@ import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+type PlanId = 'starter' | 'standard' | 'career' | 'hour';
+
 export async function POST(req: Request) {
   try {
     const { plan } = await req.json();
 
-    if (!['single', 'hour'].includes(plan)) {
+    const allowedPlans: PlanId[] = ['starter', 'standard', 'career', 'hour'];
+    if (!allowedPlans.includes(plan)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
 
-    const priceId = plan === 'single'
-      ? process.env.STRIPE_PRICE_SINGLE
-      : process.env.STRIPE_PRICE_HOUR;
+    const planKey = plan as PlanId;
+    const priceEnvMap: Record<PlanId, string | undefined> = {
+      starter: process.env.STRIPE_PRICE_STARTER,
+      standard: process.env.STRIPE_PRICE_STANDARD,
+      career: process.env.STRIPE_PRICE_CAREER,
+      hour: process.env.STRIPE_PRICE_HOUR,
+    };
+
+    const priceId = priceEnvMap[planKey];
 
     if (!priceId) {
       return NextResponse.json({ error: 'Price not configured' }, { status: 500 });
@@ -27,6 +36,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
+      metadata: { plan },
       success_url: `${baseUrl}/unlock/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/dashboard`,
       // allow_promotion_codes: true,
@@ -39,4 +49,3 @@ export async function POST(req: Request) {
   }
 }
 export const dynamic = 'force-dynamic';
-

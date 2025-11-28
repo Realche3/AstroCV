@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TailoredResume } from '@/types/TailoredResume';
 
-type PurchaseType = 'single' | 'pro' | null;
+type PurchaseType = 'bundle' | 'pro' | null;
 
 type ResumeTemplateId =
   | 'corporate-classic'
@@ -34,10 +34,12 @@ interface ResumeStore {
   // Payment/entitlement
   isPaid: boolean;
   proAccessUntil: number | null;
+  templateAccessUntil: number | null;
   purchaseType: PurchaseType;
 
   setPaid: (paid: boolean) => void;
   setProAccessUntil: (ts: number | null) => void;
+  setTemplateAccessUntil: (ts: number | null) => void;
   setPurchaseType: (t: PurchaseType) => void;
 
   setResumeTemplate: (templateId: ResumeTemplateId) => void;
@@ -69,10 +71,12 @@ export const useResumeStore = create<ResumeStore>()(
 
       isPaid: false,
       proAccessUntil: null,
+      templateAccessUntil: null,
       purchaseType: null,
 
       setPaid: (paid) => set({ isPaid: paid }),
       setProAccessUntil: (ts) => set({ proAccessUntil: ts }),
+      setTemplateAccessUntil: (ts) => set({ templateAccessUntil: ts }),
       setPurchaseType: (t) => set({ purchaseType: t }),
 
       setResumeTemplate: (templateId) => set({ resumeTemplateId: templateId }),
@@ -82,7 +86,7 @@ export const useResumeStore = create<ResumeStore>()(
         set((state) => ({
           singleCredits: state.singleCredits + count,
           isPaid: true,
-          purchaseType: 'single',
+          purchaseType: 'bundle',
         })),
       consumeSingleCredit: () =>
         set((state) => {
@@ -92,7 +96,7 @@ export const useResumeStore = create<ResumeStore>()(
           return {
             singleCredits: next,
             isPaid: stillPro || hasCredit,
-            purchaseType: stillPro ? state.purchaseType : hasCredit ? 'single' : null,
+            purchaseType: stillPro ? state.purchaseType : hasCredit ? 'bundle' : null,
           };
         }),
 
@@ -114,15 +118,24 @@ export const useResumeStore = create<ResumeStore>()(
           resumeTemplateId: 'corporate-classic',
           freeTrialUsed: state.freeTrialUsed,
           singleCredits: state.singleCredits,
-          isPaid: false,
-          proAccessUntil: null,
-          purchaseType: null,
+          isPaid: state.isPaid,
+          proAccessUntil: state.proAccessUntil,
+          templateAccessUntil: state.templateAccessUntil,
+          purchaseType: state.purchaseType,
         })),
 
       lockResume: () =>
         set((state) => ({
-          isPaid: state.proAccessUntil && state.proAccessUntil > Date.now() ? state.isPaid : false,
-          purchaseType: state.proAccessUntil && state.proAccessUntil > Date.now() ? state.purchaseType : state.singleCredits > 0 ? 'single' : null,
+          isPaid:
+            (state.proAccessUntil && state.proAccessUntil > Date.now()) ||
+            (state.templateAccessUntil && state.templateAccessUntil > Date.now()) ||
+            state.singleCredits > 0,
+          purchaseType:
+            state.proAccessUntil && state.proAccessUntil > Date.now()
+              ? state.purchaseType
+              : state.singleCredits > 0
+              ? 'bundle'
+              : null,
         })),
     }),
     {
@@ -136,10 +149,9 @@ export const useResumeStore = create<ResumeStore>()(
         singleCredits: state.singleCredits,
         isPaid: state.isPaid,
         proAccessUntil: state.proAccessUntil,
+        templateAccessUntil: state.templateAccessUntil,
         purchaseType: state.purchaseType,
       }),
     }
   )
 );
-
-

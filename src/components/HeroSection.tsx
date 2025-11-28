@@ -1,37 +1,63 @@
 'use client';
 
 import { motion, useAnimation } from 'framer-motion';
-import { ArrowRightIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
-import { useState, useEffect } from 'react';
+import { ArrowRightIcon } from '@heroicons/react/24/solid';
+import { useState, useEffect, useMemo } from 'react';
 
-const sampleResumes = [
+const samplePairs = [
   {
-    job: `Seeking a Senior Software Engineer with 3+ years of experience in full-stack development using React and Node.js. Must demonstrate leadership, CI/CD knowledge, and the ability to scale products.`,
-    before: `JOHN DOE\n------------\nSoftware Engineer\nABC Company • 2020-Present\n\n• Developed web applications\n• Worked with JavaScript and React\n• Collaborated with team members\n• Fixed bugs in existing code`,
-    after: `JOHN DOE\n------------\nSenior Full Stack Engineer (Tailored for Full-Stack Role)\nABC Company • 2020-Present\n\n• Architected 12+ React/Node.js applications scaling to 10K+ MAU\n• Led cross-functional Agile team of 5 developers\n• Reduced production bugs by 65% through CI/CD pipeline implementation\n• Mentored 3 junior developers in modern JavaScript best practices`
-  }
+    jobTitle: 'Senior Full Stack Engineer',
+    company: 'Growth SaaS, Series B',
+    keywords: ['React', 'Node.js', 'CI/CD', 'Leadership'],
+    before: [
+      'Built web applications',
+      'Worked with JavaScript and React',
+      'Collaborated with team members',
+    ],
+    after: [
+      'Architected 12+ React/Node apps to 10K+ MAU',
+      'Led Agile pod of 5; mentored 3 juniors',
+      'Cut prod bugs by 65% with CI/CD rollout',
+    ],
+    metric: '+3.2x more callbacks',
+  },
+  {
+    jobTitle: 'Product Manager, Platform',
+    company: 'Fintech scale-up',
+    keywords: ['Roadmaps', 'API', 'Stakeholders', 'Data'],
+    before: [
+      'Managed product features',
+      'Worked with engineers',
+      'Gathered requirements',
+    ],
+    after: [
+      'Shipped API roadmap that grew partner GMV 28%',
+      'Ran data-driven prioritization across 4 squads',
+      'Aligned execs with crisp KPI storytelling',
+    ],
+    metric: '+41% recruiter replies',
+  },
 ];
 
 export default function HeroSection() {
-  const [currentExample, setCurrentExample] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [current, setCurrent] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
   const controls = useAnimation();
 
-  const cycleExamples = async () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    await controls.start({ opacity: 0, y: 10, transition: { duration: 0.3 } });
-    setCurrentExample((prev) => (prev + 1) % sampleResumes.length);
-    await controls.start({ opacity: 1, y: 0, transition: { duration: 0.5 } });
-    setIsAnimating(false);
-  };
+  const pair = useMemo(() => samplePairs[current], [current]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (!isHovering) interval = setInterval(cycleExamples, 7000);
+    if (!isHovering) {
+      interval = setInterval(() => {
+        controls.start({ opacity: 0, y: 8, transition: { duration: 0.25 } }).then(() => {
+          setCurrent((prev) => (prev + 1) % samplePairs.length);
+          controls.start({ opacity: 1, y: 0, transition: { duration: 0.25 } });
+        });
+      }, 6000);
+    }
     return () => clearInterval(interval);
-  }, [isHovering, currentExample]);
+  }, [isHovering, controls]);
 
   return (
     <section className="relative pt-32 pb-40 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-b from-gray-950 to-gray-900">
@@ -106,55 +132,97 @@ export default function HeroSection() {
           ))}
         </motion.div>
 
-        {/* Resume Preview */}
+        {/* Live comparison strip */}
         <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.8 }}
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
-          className="relative mt-20 max-w-4xl mx-auto"
+          className="relative mt-16 max-w-5xl mx-auto"
         >
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-800/60 bg-gray-900/70 backdrop-blur-sm">
-            {/* Job Description */}
-            <div className="bg-blue-950/50 p-6 border-b border-blue-800">
-              <h3 className="text-sm font-semibold text-blue-300 mb-2">🎯 Job Description</h3>
-              <p className="text-sm text-gray-200 leading-relaxed">{sampleResumes[currentExample].job}</p>
+          <div className="rounded-3xl border border-gray-800/70 bg-gray-900/70 backdrop-blur-sm shadow-2xl shadow-blue-900/20 p-6 sm:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-blue-200">
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-900/40 px-3 py-1 border border-blue-700/60">
+                  🎯 {pair.jobTitle}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-gray-800/80 px-3 py-1 border border-gray-700 text-gray-200">
+                  {pair.company}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 justify-start sm:justify-end">
+                {pair.keywords.map((kw) => (
+                  <span key={kw} className="inline-flex items-center rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide">
+                    {kw}
+                  </span>
+                ))}
+              </div>
             </div>
 
-            {/* Resume Comparison */}
-            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-800">
-              {/* Before */}
-              <div className="p-6 bg-gray-900/80">
-                <h4 className="text-sm font-semibold text-gray-300 mb-2">❌ Original Resume</h4>
-                <pre className="whitespace-pre-wrap text-gray-400 text-sm bg-gray-800/50 p-4 rounded border border-gray-700 max-h-72 overflow-auto font-mono">
-                  {sampleResumes[currentExample].before}
-                </pre>
+            <motion.div
+              animate={controls}
+              className="mt-6 grid gap-4 sm:grid-cols-[1.05fr,1fr]"
+            >
+              <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5 text-left">
+                <div className="flex items-center gap-2 text-sm font-semibold text-red-200 mb-3">
+                  <span className="text-lg">✕</span> Before (generic)
+                </div>
+                <ul className="space-y-2 text-sm text-gray-300">
+                  {pair.before.map((line, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gray-600" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              {/* After */}
-              <div className="p-6 bg-gray-900/80">
-                <h4 className="text-sm font-semibold text-gray-300 mb-2">✅ Tailored Version</h4>
-                <pre className="whitespace-pre-wrap text-blue-100 text-sm bg-blue-900/30 p-4 rounded border border-blue-700 max-h-72 overflow-auto font-mono">
-                  {sampleResumes[currentExample].after}
-                </pre>
-                <div className="mt-3 flex items-center text-xs text-blue-400">
-                  <span className="h-2 w-2 rounded-full bg-blue-400 mr-2 animate-pulse" />
-                  Matched job keywords and improved impact
+              <div className="rounded-2xl border border-blue-700/60 bg-blue-900/20 p-5 text-left shadow-inner shadow-blue-900/20">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200 mb-3">
+                  <span className="text-lg">✓</span> After (tailored in 60s)
+                  <span className="ml-auto rounded-full bg-emerald-500/15 border border-emerald-400/50 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
+                    {pair.metric}
+                  </span>
                 </div>
+                <ul className="space-y-2 text-sm text-blue-50">
+                  {pair.after.map((line, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-400" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-blue-100">
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-1">
+                  🔍 Matches keywords automatically
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-1">
+                  ⚡ Rewrites bullets with impact
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 border border-blue-500/30 px-3 py-1">
+                  📝 Ready to download in PDF/DOCX
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative h-16 w-28 rotate-[-2deg] overflow-hidden rounded-xl border border-gray-800 bg-gradient-to-br from-white/5 via-blue-500/10 to-black/20 shadow-lg shadow-blue-900/20">
+                  <div className="absolute inset-1 rounded-lg border border-white/10" />
+                  <div className="absolute bottom-1 right-1 text-[10px] font-semibold text-blue-100">Preview</div>
+                </div>
+                <button
+                  onClick={() => setCurrent((prev) => (prev + 1) % samplePairs.length)}
+                  className="text-xs text-gray-300 hover:text-white transition"
+                  aria-label="Next example"
+                >
+                  Next example →
+                </button>
               </div>
             </div>
           </div>
-
-          {/* Cycle button */}
-          <button
-            onClick={cycleExamples}
-            disabled={isAnimating}
-            aria-label="Refresh example"
-            className="absolute top-2 right-2 text-sm text-gray-400 hover:text-white bg-gray-800 rounded-full p-2 transition"
-          >
-            <ArrowPathIcon className={`h-4 w-4 ${isAnimating ? 'animate-spin' : ''}`} />
-          </button>
         </motion.div>
       </div>
 

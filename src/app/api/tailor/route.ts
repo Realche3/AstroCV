@@ -7,6 +7,7 @@ import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/lib/payments/jwt';
+import { normalizeTemplateId, isTemplatePro } from '@/lib/templates/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -195,6 +196,9 @@ if (hasUnlimitedTailoring && proSessionId && proSessionExp) {
 }
 
 const jobDescription = (formData.get('jobDescription') as string)?.trim();
+const requestedTemplateRaw = (formData.get('templateId') as string | null) || null;
+const templateId = normalizeTemplateId(requestedTemplateRaw);
+const isProTemplate = isTemplatePro(templateId);
 const resumeText = (formData.get('resumeText') as string | null)?.trim() || null;
 const resumeFile = formData.get('resumeFile') as File | null;
 
@@ -234,6 +238,20 @@ if (!finalResumeText || !jobDescription) {
       proUsage: hasUnlimitedTailoring ? proUsage : null,
     }
   );
+}
+
+if (isProTemplate) {
+  const hasTemplateAccess = Boolean(entitlement && (entitlement.type === 'pro' || entitlement.type === 'bundle'));
+  if (!hasTemplateAccess) {
+    return buildResponse(
+      { error: 'This template is available with Pro or a paid credit. Choose a free template or upgrade to unlock it.' },
+      {
+        status: 402,
+        quota: hasUnlimitedTailoring ? null : quota,
+        proUsage: hasUnlimitedTailoring ? proUsage : null,
+      }
+    );
+  }
 }
 
 let updatedQuota: TailorQuota | null = null;

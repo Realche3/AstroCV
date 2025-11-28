@@ -14,6 +14,7 @@ function SuccessContent() {
   const setToken = useResumeStore((s) => s.setToken);
   const setPurchaseType = useResumeStore((s) => s.setPurchaseType);
   const addSingleCredit = useResumeStore((s) => s.addSingleCredit);
+  const setTemplateAccessUntil = useResumeStore((s) => s.setTemplateAccessUntil);
 
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -60,6 +61,7 @@ function SuccessContent() {
         if (!res.ok || !data?.token || !data?.type) throw new Error('Confirm failed');
         setToken(data.token);
         setPurchaseType(data.type);
+        if (data.exp) setTemplateAccessUntil(data.exp * 1000);
 
         if (data.type === 'pro') {
           setPaid(true);
@@ -77,7 +79,7 @@ function SuccessContent() {
         }
 
         setProAccessUntil(null);
-        addSingleCredit(2);
+        addSingleCredit(typeof data.credits === 'number' && data.credits > 0 ? data.credits : 2);
         setPaid(true);
 
         try {

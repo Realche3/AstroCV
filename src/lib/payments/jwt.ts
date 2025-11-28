@@ -11,7 +11,7 @@ function base64url(input: Buffer | string) {
 }
 
 export interface AccessPayload {
-  type: 'single' | 'pro';
+  type: 'bundle' | 'pro';
   exp: number; // unix seconds
   sid?: string; // sessionId
   email?: string | null;
